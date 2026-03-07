@@ -1,74 +1,154 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Sidebar from '../components/Sidebar';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import axios from 'axios';
-import { BsCheckCircleFill } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user'));
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const region = JSON.parse(localStorage.getItem("region"));
+ // const [sidebarOpen, setSidebarOpen] = useState(false);
   const [plans, setPlans] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editPlans, setEditPlans] = useState([]);
-
+  const [comparisonData, setComparisonData] = useState([]);
+  const [packageNames, setPackageNames] = useState([]);
   const [modules, setModules] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
+  const [editDiscounts, setEditDiscounts] = useState([]);
+  const [discountTypes, setDiscountTypes] = useState([]);
+ // const [selectedType, setSelectedType] = useState('');
+  
+
+const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+
+
+  const [moduleSummary, setModuleSummary] = useState({
+  pro: 0,
+  proPlus: 0,
+  ghrowth: 0,
+});
   const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
   const [editModules, setEditModules] = useState([]);
-
   const [notification, setNotification] = useState({ message: '', type: '' });
+  const [selectedPlan, setSelectedPlan] = useState('');
 
-  const plansRef = useRef(null);
+  //const plansRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  // Determine dashboard mode (new or existing)
+const params = new URLSearchParams(location.search);
+const mode = params.get("mode") || "new"; // default to new
 
-  const gradientButtons = [
-    'from-green-600 to-teal-500',
-    'from-green-500 to-teal-400',
-    'from-green-400 to-teal-300',
-  ];
+
+  // Fetch packages and modules
+useEffect(() => {
+  const fetchPackages = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/packages');
+      const packagesWithDesc = res.data.map(pkg => ({
+        ...pkg,
+        pkgDescList: pkg.pkgDesc ? pkg.pkgDesc.split(',').map(f => f.trim()) : []
+      }));
+      setPlans(packagesWithDesc);
+      setPackageNames(packagesWithDesc);
+    } catch (err) {
+      console.error('Error fetching packages:', err);
+    }
+  };
+
+  const fetchModulesAndSummary = async () => {
+    try {
+      // Fetch all modules
+      const res = await axios.get('http://localhost:5000/api/modules');
+      setModules(res.data);
+      console.log("Modules fetched from backend:", res.data);
+
+      // ✅ Fetch dynamic module summary counts from backend
+      const summaryRes = await axios.get('http://localhost:5000/api/modules/summary');
+      setModuleSummary({
+        pro: summaryRes.data.Pro || 0,
+        proPlus: summaryRes.data.ProPlus || 0,
+        ghrowth: summaryRes.data.GHROWTH || 0,
+      });
+    } catch (err) {
+      console.error('Error fetching modules or summary:', err);
+    }
+  };
+
+  fetchPackages();
+  fetchModulesAndSummary();
+}, []);
+
 
   useEffect(() => {
-    const fetchPackages = async () => {
+    const fetchComparison = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/packages');
-        setPlans(res.data);
+        const res = await axios.get("http://localhost:5000/api/modules/feature-comparison");
+        setPackageNames(res.data.packages || []);
+        setComparisonData(res.data.modules || []);
       } catch (err) {
-        console.error('Error fetching packages:', err);
+        console.error("Error fetching feature comparison:", err);
       }
     };
-    fetchPackages();
-
-    const fetchModules = async () => {
-      try {
-        const res = await axios.get('http://localhost:5000/api/modules');
-        setModules(res.data);
-      } catch (err) {
-        console.error('Error fetching modules:', err);
-      }
-    };
-    fetchModules();
+    fetchComparison();
   }, []);
 
-  if (!user) return <p>Loading...</p>;
+  useEffect(() => {
+  const fetchDiscounts = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/discounts'); // Your API endpoint
+      setDiscounts(res.data);
+    } catch (err) {
+      console.error('Error fetching discounts:', err);
+    }
+  };
 
-  const handleExploreClick = () => {
+  fetchDiscounts();
+}, []);
+useEffect(() => {
+  const fetchDiscountTypes = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/discounts/types/all");
+      console.log("Discount types API response:", res.data); // <-- check this
+      setDiscountTypes(res.data.types || res.data || []); // <-- set correctly
+    } catch (err) {
+      console.error("Error fetching discount types:", err);
+    }
+  };
+  fetchDiscountTypes();
+}, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const section = params.get("section");
+    let targetId = null;
+    if (section === "modules") targetId = "modules-section";
+    else if (section === "packages") targetId = "packages-section";
+
+    if (targetId) {
+      const element = document.getElementById(targetId);
+      if (element) {
+        const yOffset = -80;
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    }
+  }, [location.search]);
+
+  if (!user) return <p className="text-center text-black font-semibold mt-20">Loading...</p>;
+
+  /*const handleExploreClick = () => {
     const yOffset = -80;
     const element = plansRef.current;
     const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
     window.scrollTo({ top: y, behavior: 'smooth' });
-  };
+  };*/
 
-  // --- Notification Function ---
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification({ message: '', type: '' }), 3000);
-  };
-
-  // --- Plans Edit Handlers ---
-  const handleEditClick = () => {
-    setEditPlans(JSON.parse(JSON.stringify(plans)));
-    setIsModalOpen(true);
   };
 
   const handlePlanChange = (index, field, value) => {
@@ -98,32 +178,14 @@ const Dashboard = () => {
   const handleSaveChanges = async () => {
     try {
       await axios.put('http://localhost:5000/api/packages', { packages: editPlans });
-      setPlans(editPlans);
+      const res = await axios.get('http://localhost:5000/api/packages');
+      setPlans(res.data);
       setIsModalOpen(false);
       showNotification('Plans updated successfully!');
     } catch (err) {
       console.error('Error updating packages:', err);
       alert('Failed to update packages');
     }
-  };
-
-  // --- Modules Edit Handlers ---
-  const handleEditModules = () => {
-    setEditModules(JSON.parse(JSON.stringify(modules)));
-    setIsModuleModalOpen(true);
-  };
-
-  const handleAddNewModule = () => {
-    const newModule = {
-      tempId: Date.now(),
-      modName: '',
-      modDesc: '',
-      modFeatureList: '',
-      modObjective: '',
-      isNew: true,
-    };
-    setEditModules(prev => [newModule, ...prev]);
-    setIsModuleModalOpen(true);
   };
 
   const handleModuleChange = (index, field, value) => {
@@ -134,18 +196,13 @@ const Dashboard = () => {
     });
   };
 
-  // ✅ Updated Module Delete Handler
   const handleRemoveModule = async (id, isNew) => {
     if (isNew) {
-      // Just remove locally
       setEditModules(prev => prev.filter(mod => (mod.tempId || mod.modId) !== id));
     } else {
-      // Confirm before deleting from backend
       if (!window.confirm('Are you sure you want to delete this module?')) return;
-
       try {
         await axios.delete(`http://localhost:5000/api/modules/${id}`);
-        // Remove from local states
         setEditModules(prev => prev.filter(mod => mod.modId !== id));
         setModules(prev => prev.filter(mod => mod.modId !== id));
         showNotification('Module deleted successfully!');
@@ -157,14 +214,12 @@ const Dashboard = () => {
   };
 
   const handleSaveModules = async () => {
-    // ✅ Frontend validation
     for (const mod of editModules) {
       if (!mod.modName || !mod.modDesc) {
         alert('Module Name and Description are required for all modules.');
         return;
       }
     }
-
     try {
       await axios.put('http://localhost:5000/api/modules/bulk', { modules: editModules });
       const res = await axios.get('http://localhost:5000/api/modules');
@@ -177,152 +232,532 @@ const Dashboard = () => {
     }
   };
 
+  // Open modal and set editDiscounts
+const handleAddDiscount = () => {
+  setEditDiscounts([
+    ...editDiscounts,
+    { discCode: '', discDesc: '', discPercentage: 0, discType: 'Rate(PEPM)', validFromMonth: 1, validToMonth: 12, tempId: Date.now() }
+  ]);
+  setIsDiscountModalOpen(true);
+};
+
+const handleEditDiscount = (index) => {
+  setEditDiscounts([discounts[index]]); // load selected discount for editing
+  setIsDiscountModalOpen(true);
+};
+
+const handleDiscountChange = (index, field, value) => {
+  const updated = [...editDiscounts];
+  updated[index][field] = value;
+  setEditDiscounts(updated);
+};
+
+const handleDeleteDiscount = async (id) => {
+  if (!window.confirm('Are you sure you want to delete this discount?')) return;
+  try {
+    await axios.delete(`http://localhost:5000/api/discounts/${id}`);
+    setDiscounts(prev => prev.filter(d => d.discId !== id));
+    showNotification('Discount deleted successfully!');
+  } catch (err) {
+    console.error(err);
+    alert('Failed to delete discount.');
+  }
+};
+
+const handleSaveDiscounts = async () => {
+  try {
+    await axios.put('http://localhost:5000/api/discounts', { discounts: editDiscounts });
+    const res = await axios.get('http://localhost:5000/api/discounts');
+    setDiscounts(res.data);
+    setIsDiscountModalOpen(false);
+    showNotification('Discounts saved successfully!');
+  } catch (err) {
+    console.error(err);
+    alert('Failed to save discounts.');
+  }
+};
+
+
+  const comparisonDataGroupedByCategory = comparisonData
+    .filter(mod => mod.category !== "Plan Benefits")
+    .reduce((acc, mod) => {
+      const category = mod.category || "Other";
+      if (!acc[category]) acc[category] = [];
+      acc[category].push({
+        feature: mod.modName,
+        desc: mod.modDesc,
+        status: mod.packages,
+      });
+      return acc;
+    }, {});
+
+  const planBenefitFeatures = Array.from(
+    new Set(
+      packageNames
+        .map(pkg => (pkg.pkgDesc ? pkg.pkgDesc.split(',').map(f => f.trim()) : []))
+        .flat()
+    )
+  );
+
   return (
-    <div className="relative min-h-screen bg-gray-50">
+    <div className="relative min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 font-sans text-black">
       {/* Notification Popup */}
       {notification.message && (
         <div
-          className={`fixed top-5 right-5 px-4 py-2 rounded shadow-lg text-white z-50 animate-fadeIn ${
+          className={`fixed top-5 right-5 px-6 py-3 rounded-2xl shadow-xl text-white z-50 animate-fadeIn flex items-center gap-3 font-medium transition-transform transform ${
             notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}
         >
-          {notification.message}
+          {notification.type === 'success' ? '✔️' : '❌'} {notification.message}
         </div>
       )}
 
-      <Sidebar role={user.role} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <Navbar user={user} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar user={user} />
 
-      <main className="flex-grow pt-20 px-0">
-        {/* Hero Section */}
-        <div className="w-full bg-gradient-to-br from-green-700 to-teal-600 text-white pt-16 pb-16 px-6 md:px-12">
-          <div className="text-center max-w-5xl mx-auto space-y-6">
-            <h1 className="text-4xl md:text-5xl font-extrabold">Welcome, {user.custName}!</h1>
-            <p className="text-lg md:text-xl">Get started with your favorite subscription plan today</p>
-            <div className="space-y-4 text-left md:text-center">
-              <p className="text-lg">
-                ZingHR is an <span className="font-semibold">AI-powered, cloud-based Human Capital Management (HCM) platform</span>.
-              </p>
-              <div className="text-center mt-6">
-                <button
-                  onClick={handleExploreClick}
-                  className="px-6 py-3 bg-white text-green-700 font-bold rounded-xl shadow-lg hover:scale-105 transition transform"
-                >
-                  Explore Plans
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <main className="flex-grow pt-20 px-4 md:px-8">
+        {/* ✅ Admin Edit Buttons */}
+{user.role === 'admin' && (
+  <div className="flex justify-end mb-6 gap-2">
+    <button
+      onClick={() => { setEditPlans(plans); setIsModalOpen(true); }}
+      className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+    >
+      Edit Plans
+    </button>
+    <button
+      onClick={() => { setEditModules(modules); setIsModuleModalOpen(true); }}
+      className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition"
+    >
+      Edit Modules
+    </button>
+  </div>
+)}
 
-        {/* Subscription Plans */}
-        <div ref={plansRef} className="mt-12 px-6">
-          {(user.role === 'customer' || user.role === 'admin') && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-green-700">Subscription Plans</h2>
-                {user.role === 'admin' && (
-                  <button
-                    onClick={handleEditClick}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                  >
-                    ✏️ Edit Plans
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {plans.map((plan, index) => {
-                  const gradient = gradientButtons[index % gradientButtons.length];
-                  const isPremium = index === plans.length - 1;
-                  return (
-                    <div key={index} className={`relative rounded-3xl shadow-xl overflow-hidden border transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${isPremium ? 'border-green-500' : 'border-gray-200'}`}>
-                      <div className={`p-6 text-center border-b ${isPremium ? 'border-green-500' : 'border-gray-200'}`}>
-                        <h3 className={`text-2xl font-bold mb-2 ${isPremium ? 'text-green-700' : 'text-gray-800'}`}>{plan.name}</h3>
-                        {plan.price && <p className="text-3xl font-extrabold mb-4">${plan.price}</p>}
-                        {plan.oldPrice && <p className="text-sm line-through text-gray-400">${plan.oldPrice}</p>}
-                      </div>
-                      <div className="p-6 space-y-3">
-                        <ul className="space-y-2 text-gray-700 text-left">
-                          {plan.description.map((feature, i) => (
-                            <li key={i} className="flex items-center gap-2">
-                              <BsCheckCircleFill className="text-green-600" /> {feature}
-                            </li>
-                          ))}
-                        </ul>
-                        {user.role === 'customer' && (
-                          <button
-                            onClick={() => {
-                              localStorage.setItem('selectedPlan', JSON.stringify(plan));
-                              navigate('/create-proposal');
-                            }}
-                            className={`mt-4 w-full py-3 font-semibold rounded-lg text-white bg-gradient-to-r ${gradient} shadow-lg hover:scale-105 transition transform`}
-                          >
-                            Subscribe
-                          </button>
+        {/* ✅ Approver Button */}
+{user.role === 'approver' && (
+  <div className="flex justify-center mb-6">
+    <button
+      onClick={() => navigate('/pending-approvals')}
+      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
+    >
+      View Pending Approvals
+    </button>
+  </div>
+)}
+{user.role !== 'approver' && user.role !== 'admin' && (
+  <div className="flex justify-center mb-6">
+    <button
+      onClick={() => navigate('/my-proposals')}
+      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
+    >
+      View My Proposals
+    </button>
+  </div>
+)}
+{/* ✅ Admin Button */}
+{user.role === 'admin' && (
+  <div className="flex justify-center mb-6">
+    <button
+      onClick={() => navigate('/admin/all-proposals')}
+      className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition"
+    >
+      View All Proposals
+    </button>
+  </div>
+)}
+{mode === "existing" && (
+  <div className="flex justify-center mb-10">
+    <button
+      onClick={() => navigate("/explore-modules")}
+      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
+    >
+      Explore All Modules
+    </button>
+  </div>
+)}
+
+        <div className="mt-16 overflow-x-auto">
+          <h1 className="text-4xl font-extrabold text-center text-blue-900 mb-3">
+            Compare Plans & Choose
+          </h1>
+          <p className="text-center text-blue-700 mb-10 text-lg">
+            Review all features and select the plan that best fits your organization
+          </p>
+
+          <div className="bg-white shadow-2xl rounded-3xl overflow-hidden border border-blue-200 max-w-7xl mx-auto px-4 md:px-6 hover:shadow-3xl transition-shadow duration-300">
+            <table className="w-full border-collapse text-sm md:text-base">
+              <thead className="sticky top-0 z-10 bg-blue-100">
+                <tr>
+                  <th className="px-6 py-4 text-left w-1/3"></th>
+                  {packageNames.map((pkg, idx) => (
+                    <th key={idx} className="px-6 py-4 text-center align-top">
+                      <div className="p-5 rounded-2xl border border-blue-200 shadow-md flex flex-col items-center bg-white hover:scale-105 transform transition-all duration-300">
+                        {pkg.pkgLabel && (
+                          <span className="text-xs bg-blue-700 text-white px-3 py-1 rounded-full font-semibold mb-1">
+                            {pkg.pkgLabel.toUpperCase()}
+                          </span>
+                        )}
+                        <h3 className="text-xl font-bold text-blue-900">{pkg.pkgName}</h3>
+                        {pkg.pkgDescHeader && (
+                          <div className="text-sm text-blue-700 mt-2 text-center">
+                            {pkg.pkgDescHeader}
+                          </div>
+                        )}
+                        {pkg.price && (
+                          <p className="text-blue-800 font-semibold mt-2 text-lg">₹{pkg.price} / month</p>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-        {/* Modules Section */}
-        <div className="mt-12 px-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-green-700">Available Modules</h2>
-            {user.role === 'admin' && (
-              <div className="flex gap-3">
-                <button
-                  onClick={handleEditModules}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  ✏️ Edit Modules
-                </button>
-                <button
-                  onClick={handleAddNewModule}
-                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-                >
-                  + Add New Module
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {modules.map((mod) => (
-              <div key={mod.modId} className="relative rounded-3xl shadow-xl overflow-hidden border border-gray-200 p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
-                <h3 className="text-xl font-bold mb-2 text-green-700">{mod.modName}</h3>
-                <p className="text-gray-700 mb-2">{mod.modDesc}</p>
-                {mod.modFeatureList && (
-                  <ul className="text-gray-600 list-disc pl-5 mb-2">
-                    {mod.modFeatureList.split(',').map((feature, i) => (
-                      <li key={i}>{feature.trim()}</li>
+              <tbody>
+                <tr className="bg-blue-800 text-white font-bold sticky top-12 z-20">
+                  <td className="px-4 py-3 text-left text-lg" colSpan={packageNames.length + 1}>
+                    Plan Benefits
+                  </td>
+                </tr>
+
+                {planBenefitFeatures.map((feature, i) => (
+                  <tr key={i} className="border-b hover:bg-blue-50 transition duration-200">
+                    <td className="px-4 py-3 font-semibold text-blue-900">{feature}</td>
+                    {packageNames.map((pkg, j) => {
+                      const features = pkg.pkgDesc?.split(',').map(f => f.trim()) || [];
+                      const included = features.includes(feature);
+                      return (
+                        <td key={j} className="text-center px-4 py-3">
+                          {included ? (
+                            <span className="inline-block bg-green-100 text-green-600 font-bold rounded-full w-8 h-8 leading-8 text-center">
+                              ✓
+                            </span>
+                          ) : (
+                            <span className="inline-block bg-gray-100 text-gray-400 font-bold rounded-full w-8 h-8 leading-8 text-center">
+                              ✗
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+
+                {Object.entries(comparisonDataGroupedByCategory).map(([category, features]) => (
+                  <React.Fragment key={category}>
+                    <tr className="bg-blue-800 text-white font-bold sticky top-12 z-20">
+                      <td className="px-4 py-3 text-left text-lg" colSpan={packageNames.length + 1}>
+                        {category}
+                      </td>
+                    </tr>
+
+                    {features.map((feature, i) => (
+                      <tr key={i} className="border-b hover:bg-blue-50 transition duration-200 align-top">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-blue-900">{feature.feature}</div>
+                          {feature.desc && (
+                            <div className="text-sm text-blue-700 mt-1">{feature.desc}</div>
+                          )}
+                        </td>
+
+                        {packageNames.map((pkg, j) => {
+  const included = feature.status?.[pkg.pkgName]?.toLowerCase() === "included";
+
+  const toggleInclusion = async () => {
+  if (user.role !== "admin") return;
+
+  // ✅ Instantly update UI (deep clone all data)
+  setComparisonData((prev) => {
+    const updated = prev.map((mod) => {
+      if (mod.modName === feature.feature) {
+        // clone everything
+        const newMod = { ...mod, status: { ...mod.status } };
+        newMod.status[pkg.pkgName] = included ? "excluded" : "included";
+        return newMod;
+      }
+      return { ...mod };
+    });
+
+    return [...updated]; // force new reference
+  });
+
+  // ✅ Update backend
+  try {
+    await axios.put("http://localhost:5000/api/modules/update-status", {
+      moduleName: feature.feature,
+      packageName: pkg.pkgName,
+      status: included ? "excluded" : "included",
+    });
+
+    showNotification("Module status updated successfully!", "success");
+  } catch (err) {
+    console.error("Error updating module status:", err);
+    showNotification("Failed to update status. Please try again.", "error");
+  }
+};
+
+
+
+  return (
+    <td
+      key={j}
+      className={`text-center px-4 py-3 ${
+        user.role === "admin" ? "cursor-pointer hover:scale-110 transition-transform" : ""
+      }`}
+      onClick={toggleInclusion}
+      title={user.role === "admin" ? "Click to toggle" : ""}
+    >
+      {included ? (
+        <span
+  className={`fade-toggle inline-block ${
+    user.role === "admin" ? "bg-green-200 hover:bg-green-300" : "bg-green-100"
+  } text-green-600 font-bold rounded-full w-8 h-8 leading-8 text-center`}
+>
+  ✓
+</span>
+      ) : (
+        <span
+  className={`fade-toggle inline-block ${
+    user.role === "admin" ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100"
+  } text-gray-500 font-bold rounded-full w-8 h-8 leading-8 text-center`}
+>
+  ✗
+</span>
+      )}
+    </td>
+  );
+})}
+                      </tr>
                     ))}
-                  </ul>
-                )}
-                {mod.modObjective && <p className="text-sm text-gray-500">Objective: {mod.modObjective}</p>}
-              </div>
-            ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
+          
         </div>
+        {/* Module Summary Section */}
+<div className="mt-16 mb-20">
+  <h2 className="text-3xl font-extrabold text-center text-blue-900 mb-10">
+    Module Summary
+  </h2>
+  <div className="flex flex-wrap justify-center gap-6">
+    <div className="bg-white shadow-xl rounded-3xl p-6 w-72 text-center border border-blue-200 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+      <h3 className="text-lg font-semibold text-blue-800 mb-2">
+        Modules in <span className="text-blue-600 font-bold">Pro</span>
+      </h3>
+      <p className="text-4xl font-extrabold text-blue-900">{moduleSummary.pro}</p>
+    </div>
+
+    <div className="bg-white shadow-xl rounded-3xl p-6 w-72 text-center border border-blue-200 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+      <h3 className="text-lg font-semibold text-blue-800 mb-2">
+        Modules in <span className="text-blue-600 font-bold">Pro Plus</span>
+      </h3>
+      <p className="text-4xl font-extrabold text-blue-900">{moduleSummary.proPlus}</p>
+    </div>
+
+    <div className="bg-white shadow-xl rounded-3xl p-6 w-72 text-center border border-blue-200 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+      <h3 className="text-lg font-semibold text-blue-800 mb-2">
+        Modules in <span className="text-blue-600 font-bold">GHROWTH</span>
+      </h3>
+      <p className="text-4xl font-extrabold text-blue-900">{moduleSummary.ghrowth}</p>
+    </div>
+  </div>
+</div>
+
+{user.role === 'admin' && (
+  <div className="mt-16 mb-20">
+    <h2 className="text-3xl font-extrabold text-center text-blue-900 mb-10">
+      Manage Discounts
+    </h2>
+
+    <div className="overflow-x-auto max-w-7xl mx-auto bg-white shadow-2xl rounded-3xl border border-blue-200 p-6">
+      {user.role === 'admin' && (
+  <button
+    onClick={handleAddDiscount}
+    className="mb-4 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+  >
+    + Add Discount
+  </button>
+)}
+
+      <table className="w-full text-sm md:text-base text-left text-gray-700 border-collapse">
+        <thead className="bg-blue-600 text-white">
+          <tr>
+            <th className="px-4 py-3">Code</th>
+            <th className="px-4 py-3">Description</th>
+            <th className="px-4 py-3">Percentage</th>
+            <th className="px-4 py-3">Type</th>
+            <th className="px-4 py-3">Valid From</th>
+            <th className="px-4 py-3">Valid To</th>
+            <th className="px-4 py-3 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {discounts.map((disc, index) => (
+            <tr key={disc.discId} className="hover:bg-blue-50 transition-colors">
+              <td className="px-4 py-3 font-semibold text-blue-900">{disc.discCode}</td>
+              <td className="px-4 py-3 text-gray-700">{disc.discDesc || '-'}</td>
+              <td className="px-4 py-3 text-gray-700">{disc.discPercentage || 0}%</td>
+              <td className="px-4 py-3 text-gray-700">{disc.discType}</td>
+              <td className="px-4 py-3 text-gray-700">{disc.validFromMonth}</td>
+              <td className="px-4 py-3 text-gray-700">{disc.validToMonth}</td>
+              <td className="px-4 py-3 text-center flex justify-center gap-2">
+                {/* Edit Button */}
+                <button
+                  className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
+                  onClick={() => handleEditDiscount(index)}
+                >
+                  Edit
+                </button>
+
+                {/* Delete Button */}
+                <button
+                  className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm"
+                  onClick={() => handleDeleteDiscount(disc.discId)}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
+{/* Select Your Plan Section */}
+{user.role !== 'approver' && (
+  <div className="mt-16 mb-24">
+    <h2 className="text-3xl font-extrabold text-center text-blue-900 mb-10">
+      Select Your Plan
+    </h2>
+
+    <div className="flex flex-wrap justify-center gap-8">
+      {/* ZingHR Pro */}
+      <label
+        className={`cursor-pointer bg-white border-2 rounded-3xl p-6 w-80 shadow-md hover:shadow-2xl transition-all duration-300 text-center ${
+          selectedPlan === 'ZingHR Pro' ? 'border-blue-600 ring-4 ring-blue-200' : 'border-blue-200'
+        }`}
+      >
+        <input
+          type="radio"
+          name="plan"
+          value="ZingHR Pro"
+          checked={selectedPlan === 'ZingHR Pro'}
+          onChange={(e) => setSelectedPlan(e.target.value)}
+          className="hidden"
+        />
+        <h3 className="text-xl font-bold text-blue-900 mb-2">ZingHR Pro</h3>
+        <p className="text-blue-700">Essential HR Management</p>
+      </label>
+
+      {/* ZingHR Pro Plus */}
+      <label
+        className={`cursor-pointer bg-white border-2 rounded-3xl p-6 w-80 shadow-md hover:shadow-2xl transition-all duration-300 text-center ${
+          selectedPlan === 'ZingHR Pro Plus' ? 'border-blue-600 ring-4 ring-blue-200' : 'border-blue-200'
+        }`}
+      >
+        <input
+          type="radio"
+          name="plan"
+          value="ZingHR Pro Plus"
+          checked={selectedPlan === 'ZingHR Pro Plus'}
+          onChange={(e) => setSelectedPlan(e.target.value)}
+          className="hidden"
+        />
+        <h3 className="text-xl font-bold text-blue-900 mb-2">ZingHR Pro Plus</h3>
+        <p className="text-blue-700">Advanced HR Suite</p>
+      </label>
+
+      {/* ZingHR GHROWTH */}
+      <label
+        className={`cursor-pointer bg-white border-2 rounded-3xl p-6 w-80 shadow-md hover:shadow-2xl transition-all duration-300 text-center ${
+          selectedPlan === 'ZingHR GHROWTH' ? 'border-blue-600 ring-4 ring-blue-200' : 'border-blue-200'
+        }`}
+      >
+        <input
+          type="radio"
+          name="plan"
+          value="ZingHR GHROWTH"
+          checked={selectedPlan === 'ZingHR GHROWTH'}
+          onChange={(e) => setSelectedPlan(e.target.value)}
+          className="hidden"
+        />
+        <h3 className="text-xl font-bold text-blue-900 mb-2">ZingHR GHROWTH</h3>
+        <p className="text-blue-700">Complete Enterprise Solution</p>
+      </label>
+    </div>
+
+    {/* Selected Plan Display */}
+    {selectedPlan && (
+      <p className="mt-10 text-center text-lg font-semibold text-blue-800">
+        You have selected: <span className="text-blue-900 font-bold">{selectedPlan}</span>
+      </p>
+    )}
+
+    {/* Buttons */}
+    <div className="mt-10 flex justify-center gap-6">
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className="px-6 py-3 bg-gray-300 text-black rounded-xl hover:bg-gray-400 transition font-semibold"
+      >
+        Back
+      </button>
+
+      <button
+        disabled={!selectedPlan}
+        onClick={() => {
+          if (selectedPlan) {
+  localStorage.setItem("selectedPlan", selectedPlan);
+  localStorage.removeItem("selectedModules"); // clear old module data
+  localStorage.setItem("source", "dashboard");
+  window.location.href = "/client-info";
+}
+        }}
+        className={`px-6 py-3 rounded-xl font-semibold transition ${
+          selectedPlan
+            ? "bg-blue-600 text-white hover:bg-blue-700"
+            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+        }`}
+      >
+        {selectedPlan ? `Continue with ${selectedPlan}` : "Select a Plan to Continue"}
+      </button>
+    </div>
+  </div>
+)}
       </main>
 
-      {/* Plan Edit Modal */}
+      {/* Modals & Footer */}
       {isModalOpen && user.role === 'admin' && (
-        <div className="fixed inset-0 flex justify-center items-center bg-black/50 backdrop-blur-sm z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 relative animate-fadeIn border border-gray-200">
-            <h2 className="text-2xl font-bold mb-4 text-center text-green-700">Edit Subscription Plans</h2>
+        <div className="fixed inset-0 flex justify-center items-center bg-black/50 backdrop-blur-md z-50">
+          <div className="bg-white rounded-3xl shadow-3xl w-full max-w-3xl p-6 relative animate-fadeIn border border-blue-200">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center text-blue-700">
+              Edit Subscription Plans
+            </h2>
             <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
               {editPlans.map((plan, index) => (
-                <div key={index} className="border p-4 rounded-lg bg-white">
+                <div key={index} className="border p-4 rounded-xl bg-blue-50 border-blue-200 hover:shadow-lg transition duration-200">
                   <input
                     type="text"
                     value={plan.name}
                     onChange={(e) => handlePlanChange(index, 'name', e.target.value)}
-                    className="w-full p-2 border rounded mb-2 font-semibold text-lg"
+                    className="w-full p-2 border rounded mb-2 font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Plan Name"
+                  />
+                  <input
+                    type="text"
+                    value={plan.label || ''}
+                    onChange={(e) => handlePlanChange(index, 'label', e.target.value)}
+                    className="w-full p-2 border rounded mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Plan Label"
+                  />
+                  <input
+                    type="number"
+                    value={plan.price || ''}
+                    onChange={(e) => handlePlanChange(index, 'price', e.target.value)}
+                    className="w-full p-2 border rounded mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Plan Price (₹ per employee / month)"
                   />
                   {plan.description.map((feature, i) => (
                     <div key={i} className="flex gap-2 mb-1">
@@ -330,7 +765,7 @@ const Dashboard = () => {
                         type="text"
                         value={feature}
                         onChange={(e) => handleFeatureChange(index, i, e.target.value)}
-                        className="w-full p-2 border rounded text-sm"
+                        className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                         placeholder="Feature"
                       />
                       <button
@@ -345,7 +780,7 @@ const Dashboard = () => {
                   <button
                     type="button"
                     onClick={() => handleAddFeature(index)}
-                    className="mt-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
+                    className="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm font-semibold"
                   >
                     + Add Feature
                   </button>
@@ -353,10 +788,16 @@ const Dashboard = () => {
               ))}
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
+              >
                 Cancel
               </button>
-              <button onClick={handleSaveChanges} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+              <button
+                onClick={handleSaveChanges}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
                 Save Changes
               </button>
             </div>
@@ -364,40 +805,39 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Module Edit Modal */}
       {isModuleModalOpen && user.role === 'admin' && (
-        <div className="fixed inset-0 flex justify-center items-center bg-black/50 backdrop-blur-sm z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 relative animate-fadeIn border border-gray-200">
-            <h2 className="text-2xl font-bold mb-4 text-center text-green-700">Edit Modules</h2>
+        <div className="fixed inset-0 flex justify-center items-center bg-black/50 backdrop-blur-md z-50">
+          <div className="bg-white rounded-3xl shadow-3xl w-full max-w-3xl p-6 relative animate-fadeIn border border-blue-200">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center text-blue-700">Edit Modules</h2>
             <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
               {editModules.map((mod, index) => (
-                <div key={mod.modId || mod.tempId} className="border p-4 rounded-lg bg-white">
+                <div key={mod.modId || mod.tempId} className="border p-4 rounded-xl bg-blue-50 border-blue-200 hover:shadow-lg transition duration-200">
                   <input
                     type="text"
                     value={mod.modName}
                     onChange={(e) => handleModuleChange(index, 'modName', e.target.value)}
-                    className="w-full p-2 border rounded mb-2 font-semibold text-lg"
+                    className="w-full p-2 border rounded mb-2 font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Module Name"
                   />
                   <input
                     type="text"
                     value={mod.modDesc}
                     onChange={(e) => handleModuleChange(index, 'modDesc', e.target.value)}
-                    className="w-full p-2 border rounded mb-2 text-sm"
+                    className="w-full p-2 border rounded mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Module Description"
                   />
                   <input
                     type="text"
                     value={mod.modFeatureList}
                     onChange={(e) => handleModuleChange(index, 'modFeatureList', e.target.value)}
-                    className="w-full p-2 border rounded mb-2 text-sm"
+                    className="w-full p-2 border rounded mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Features (comma separated)"
                   />
                   <input
                     type="text"
                     value={mod.modObjective}
                     onChange={(e) => handleModuleChange(index, 'modObjective', e.target.value)}
-                    className="w-full p-2 border rounded mb-2 text-sm"
+                    className="w-full p-2 border rounded mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Module Objective"
                   />
                   <button
@@ -414,14 +854,98 @@ const Dashboard = () => {
               <button onClick={() => setIsModuleModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition">
                 Cancel
               </button>
-              <button onClick={handleSaveModules} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+              <button onClick={handleSaveModules} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                 Save Changes
               </button>
             </div>
           </div>
         </div>
       )}
+      {isDiscountModalOpen && user.role === 'admin' && (
+  <div className="fixed inset-0 flex justify-center items-center bg-black/50 backdrop-blur-md z-50">
+    <div className="bg-white rounded-3xl shadow-3xl w-full max-w-3xl p-6 relative animate-fadeIn border border-blue-200">
+      <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center text-blue-700">
+        {editDiscounts.length === 1 ? 'Edit Discount' : 'Add Discounts'}
+      </h2>
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        {editDiscounts.map((disc, index) => (
+          <div key={disc.discId || disc.tempId} className="border p-4 rounded-xl bg-blue-50 border-blue-200 hover:shadow-lg transition duration-200">
+            <input
+              type="text"
+              value={disc.discCode}
+              onChange={(e) => handleDiscountChange(index, 'discCode', e.target.value)}
+              className="w-full p-2 border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Discount Code"
+            />
+            <input
+              type="text"
+              value={disc.discDesc}
+              onChange={(e) => handleDiscountChange(index, 'discDesc', e.target.value)}
+              className="w-full p-2 border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Description"
+            />
+            <input
+              type="number"
+              value={disc.discPercentage}
+              onChange={(e) => handleDiscountChange(index, 'discPercentage', e.target.value)}
+              className="w-full p-2 border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Percentage"
+            />
+           <select
+  value={disc.discType || ""}
+  onChange={(e) => handleDiscountChange(index, "discType", e.target.value)}
+  className="w-full p-2 border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+>
+  {discountTypes.length === 0 ? (
+    <option>Loading types...</option>
+  ) : (
+    discountTypes.map((type, i) => (
+      <option key={i} value={type}>
+        {type}
+      </option>
+    ))
+  )}
+</select>
 
+            <div className="flex gap-2 mb-2">
+              <input
+                type="number"
+                value={disc.validFromMonth}
+                onChange={(e) => handleDiscountChange(index, 'validFromMonth', e.target.value)}
+                className="w-1/2 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="Valid From (Month)"
+                min={1} max={12}
+              />
+              <input
+                type="number"
+                value={disc.validToMonth}
+                onChange={(e) => handleDiscountChange(index, 'validToMonth', e.target.value)}
+                className="w-1/2 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="Valid To (Month)"
+                min={1} max={12}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditDiscounts(prev => prev.filter((_, i) => i !== index))}
+              className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end gap-3 mt-6">
+        <button onClick={() => setIsDiscountModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition">
+          Cancel
+        </button>
+        <button onClick={handleSaveDiscounts} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       <Footer />
 
       <style>
@@ -433,6 +957,14 @@ const Dashboard = () => {
           .animate-fadeIn {
             animation: fadeIn 0.3s ease forwards;
           }
+            .fade-toggle {
+      transition: all 0.2s ease;
+      transform: scale(1);
+      display: inline-block;
+    }
+    .fade-toggle:active {
+      transform: scale(0.85);
+    }
         `}
       </style>
     </div>

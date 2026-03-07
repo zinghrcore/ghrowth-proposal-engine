@@ -1,0 +1,43 @@
+/* ---- A4 page layout ---- */
+#proposal-content {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 12mm 15mm;
+  background: #fff;
+  color: #000;
+  font-family: Arial, sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ---- Section Styling ---- */
+.pdf-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8mm;
+  margin-bottom: 15mm;
+  box-sizing: border-box;
+
+  /* This prevents content breaking across pages */
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* ---- Prevent HTML2Canvas border splitting ---- */
+.pdf-section * {
+  page-break-inside: avoid !important;
+}
+
+/* ---- For print / PDF rendering ---- */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .pdf-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}

@@ -25,8 +25,8 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
 
   // Role-specific menu items
   const adminItems = [
-    { name: 'Module Management', icon: <FaBox />, link: '/module-management' },
-    { name: 'Package Management', icon: <FaLayerGroup />, link: '/package-management' },
+    { name: 'Module Management', icon: <FaBox />, link: '/dashboard?section=modules' },
+    { name: 'Package Management', icon: <FaLayerGroup />, link: '/dashboard?section=packages' },
     { name: 'Campaign & Discounts', icon: <FaBullhorn />, link: '/campaign-management' },
     { name: 'Reports', icon: <FaChartBar />, link: '/reports' },
   ];

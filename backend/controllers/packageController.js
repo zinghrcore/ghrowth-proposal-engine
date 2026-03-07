@@ -1,6 +1,7 @@
 const db = require('../config/db');
 
 // Fetch all packages
+// Fetch all packages
 exports.getPackages = async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM zhrPackageList');
@@ -8,9 +9,11 @@ exports.getPackages = async (req, res) => {
     const packages = rows.map(pkg => ({
       id: pkg.pkgId,
       name: pkg.pkgName,
+      label: pkg.pkgLabel || "", // NEW field
       description: pkg.pkgDesc
         ? pkg.pkgDesc.split(',').map(item => item.trim()).filter(item => item)
-        : []
+        : [],
+      price: pkg.pkgPrice || 0 // NEW field
     }));
 
     res.json(packages);
@@ -20,6 +23,8 @@ exports.getPackages = async (req, res) => {
   }
 };
 
+
+// Update all packages (Admin only)
 // Update all packages (Admin only)
 exports.updatePackages = async (req, res) => {
   try {
@@ -32,8 +37,8 @@ exports.updatePackages = async (req, res) => {
         : [];
 
       await db.query(
-        'UPDATE zhrPackageList SET pkgName = ?, pkgDesc = ? WHERE pkgId = ?',
-        [pkg.name, description.join(', '), pkg.id]
+        'UPDATE zhrPackageList SET pkgName = ?, pkgLabel = ?, pkgDesc = ?, pkgPrice = ? WHERE pkgId = ?',
+        [pkg.name, pkg.label || '', description.join(', '), pkg.price || 0, pkg.id]
       );
     }
 

@@ -1,110 +1,151 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const Register = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    custType: '', // Role: admin, approver, customer
-    custName: '',
-    custCHRO: '',
-    custCHROEmail: '',
-    custCHROPhone: '',
-    custRegion: '',
-    custAddress: '',
-    password: '',
-    confirmPassword: '',
+    custName: "", 
+    custType: "",
+    custCHROEmail: "",
+    custCHROPhone: "",
+    password: "",
+    confirmPassword: "",
   });
 
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type }), 3000);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Real-time email validation
-    if (name === 'custCHROEmail') {
-      if (formData.custType === 'admin' || formData.custType === 'approver') {
+    if (name === "custCHROEmail") {
+      if (formData.custType === "admin" || formData.custType === "approver") {
         const pattern = /^[a-zA-Z0-9._%+-]+@zinghr\.com$/;
-        setEmailError(pattern.test(value) ? '' : 'Email must be @zinghr.com for Admin/Approver');
+        setEmailError(pattern.test(value) ? "" : "Email must be @zinghr.com for Admin/Approver");
       } else {
-        setEmailError('');
+        setEmailError("");
       }
     }
 
-    // Real-time password confirmation
-    if (name === 'confirmPassword' || name === 'password') {
+    if (name === "confirmPassword" || name === "password") {
       setPasswordError(
-        name === 'confirmPassword'
+        name === "confirmPassword"
           ? value !== formData.password
-            ? 'Passwords do not match'
-            : ''
+            ? "Passwords do not match"
+            : ""
           : formData.confirmPassword && value !== formData.confirmPassword
-          ? 'Passwords do not match'
-          : ''
+          ? "Passwords do not match"
+          : ""
       );
     }
   };
-
-  const nextStep = () => setStep((prev) => Math.min(prev + 1, 3));
-  const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (emailError || passwordError) {
-      alert('Please fix the errors before submitting.');
+      alert("Please fix the errors before submitting.");
       return;
     }
 
     try {
-      const res = await axios.post('http://localhost:5000/api/customers/register', formData);
-      alert(res.data.message || 'Registration successful!');
+      const res = await axios.post("http://localhost:5000/api/customers/register", formData);
+      showToast(res.data.message || "Registration successful!", "success");
+
       setFormData({
-        custType: '',
-        custName: '',
-        custCHRO: '',
-        custCHROEmail: '',
-        custCHROPhone: '',
-        custRegion: '',
-        custAddress: '',
-        password: '',
-        confirmPassword: '',
+        custType: "",
+        custCHROEmail: "",
+        custCHROPhone: "",
+        password: "",
+        confirmPassword: "",
       });
-      navigate('/login');
+
+      setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Registration failed.');
+      showToast(err.response?.data?.message || "Registration failed.", "error");
     }
   };
 
-  const renderStep = () => {
-    const inputClasses =
-      'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:outline-none transition duration-300 ease-in-out';
+  const inputClasses =
+    "w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none transition duration-300 ease-in-out shadow-sm bg-white placeholder-gray-400";
 
-    switch (step) {
-      case 1:
-        return (
-          <div className="space-y-4 animate-fadeIn">
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row font-sans">
+      {/* ✅ Toast Notification */}
+      {toast.show && (
+        <div
+          className={`fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg transition-all duration-500 transform
+            ${
+              toast.type === "success"
+                ? "bg-emerald-600 text-white"
+                : "bg-red-600 text-white"
+            } animate-toastIn`}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      {/* ✅ Left Side - Branding */}
+      <div className="md:w-1/2 bg-gradient-to-br from-purple-600 to-blue-700 flex flex-col justify-center items-center p-12 text-white relative overflow-hidden">
+        <div className="absolute -top-28 -left-28 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute -bottom-28 -right-28 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-float animation-delay-500"></div>
+
+        <h1 className="text-5xl md:text-6xl font-extrabold mb-4 tracking-wide">
+          Welcome to ZingHR
+        </h1>
+
+        <p className="text-lg md:text-xl mb-8 text-center max-w-lg leading-relaxed text-white/90">
+          Simplify your HR journey and empower your team effortlessly.
+        </p>
+
+        <img
+          src="/assets/Zing-Logo.png"
+          alt="HR Management"
+          className="w-64 md:w-80 rounded-xl shadow-2xl border border-white/20"
+        />
+      </div>
+
+      {/* ✅ Right Side - Form */}
+      <div className="md:w-1/2 flex items-center justify-center p-12 bg-gray-50">
+        <div className="w-full max-w-md bg-white shadow-2xl rounded-3xl p-10 animate-fadeIn border border-gray-100">
+          <h2 className="text-3xl md:text-4xl font-bold text-purple-700 mb-6 text-center tracking-tight">
+            Create Your Account
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <label className="block text-gray-700 font-medium">Select Role</label>
             <select
               name="custType"
               value={formData.custType}
               onChange={handleChange}
               className={inputClasses}
+              required
             >
               <option value="">-- Select Role --</option>
-              <option value="customer">Customer</option>
+              <option value="customer">User</option>
               <option value="approver">Approver</option>
               <option value="admin">Admin</option>
             </select>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-4 animate-fadeIn">
+
+            <input
+  name="custName"
+  type="text"
+  placeholder="Full Name"
+  value={formData.custName}
+  onChange={handleChange}
+  className={inputClasses}
+  required
+/>
+
             <input
               name="custCHROEmail"
               type="email"
@@ -124,43 +165,7 @@ const Register = () => {
               className={inputClasses}
               required
             />
-            <input
-              name="custRegion"
-              placeholder="Region"
-              value={formData.custRegion}
-              onChange={handleChange}
-              className={inputClasses}
-            />
-            <input
-              name="custAddress"
-              placeholder="Address"
-              value={formData.custAddress}
-              onChange={handleChange}
-              className={inputClasses}
-            />
-            {formData.custType === 'customer' && (
-              <input
-                name="custName"
-                placeholder="Company Name"
-                value={formData.custName}
-                onChange={handleChange}
-                className={inputClasses}
-              />
-            )}
-            {formData.custType === 'customer' && (
-              <input
-                name="custCHRO"
-                placeholder="CHRO Name"
-                value={formData.custCHRO}
-                onChange={handleChange}
-                className={inputClasses}
-              />
-            )}
-          </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-4 animate-fadeIn">
+
             <input
               name="password"
               type="password"
@@ -180,67 +185,20 @@ const Register = () => {
               required
             />
             {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
 
-  return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left Side - Branding */}
-      <div className="md:w-1/2 bg-gradient-to-br from-green-500 to-green-800 flex flex-col justify-center items-center p-10 text-white">
-        <h1 className="text-4xl font-extrabold mb-4">Welcome to ZingHR</h1>
-        <p className="text-lg mb-6 text-center">Streamline your HR operations and manage customers efficiently.</p>
-        <img src="/assets/Zing-Logo.png" alt="HR Management" className="w-full max-w-sm" />
-      </div>
-
-      {/* Right Side - Form */}
-      <div className="md:w-1/2 flex items-center justify-center p-10 bg-gray-50">
-        <div className="w-full max-w-md bg-white shadow-2xl rounded-2xl p-10 animate-fadeIn">
-          <h2 className="text-3xl font-bold text-green-700 mb-6 text-center">Create Your Account</h2>
-
-          {/* Progress Bar */}
-          <div className="flex mb-6">
-            {[1, 2, 3].map((s) => (
-              <div
-                key={s}
-                className={`flex-1 h-2 mx-1 rounded-full transition-all duration-300 ease-in-out ${step >= s ? 'bg-green-600' : 'bg-gray-300'}`}
-              />
-            ))}
-          </div>
-
-          <form
-            onSubmit={step === 3 ? handleSubmit : (e) => { e.preventDefault(); nextStep(); }}
-            className="space-y-5"
-          >
-            {renderStep()}
-
-            <div className="flex justify-between mt-4">
-              {step > 1 && (
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  className="px-5 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition transform hover:scale-105"
-                >
-                  Previous
-                </button>
-              )}
-              <button
-                type="submit"
-                className="ml-auto px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition transform hover:scale-105"
-              >
-                {step === 3 ? 'Register' : 'Next'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-700 text-white rounded-xl shadow-lg hover:scale-105 hover:from-purple-700 hover:to-blue-800 transition transform font-semibold"
+            >
+              Register
+            </button>
           </form>
 
           <p className="mt-6 text-center text-gray-500">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <span
-              onClick={() => navigate('/login')}
-              className="text-green-600 font-medium cursor-pointer hover:underline"
+              onClick={() => navigate("/login")}
+              className="text-purple-600 font-medium cursor-pointer hover:underline hover:text-blue-700 transition"
             >
               Login
             </span>
@@ -248,16 +206,33 @@ const Register = () => {
         </div>
       </div>
 
-      {/* Tailwind Animation */}
+      {/* ✅ Animations */}
       <style>
         {`
           @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
+            from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
           }
           .animate-fadeIn {
-            animation: fadeIn 0.5s ease forwards;
+            animation: fadeIn 0.6s ease forwards;
           }
+
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+          }
+          .animate-float {
+            animation: float 6s ease-in-out infinite;
+          }
+          .animation-delay-500 {
+            animation-delay: 0.5s;
+          }
+
+          @keyframes toastIn {
+            0% { opacity: 0; transform: translateY(-20px) scale(0.9); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          .animate-toastIn { animation: toastIn 0.5s ease forwards; }
         `}
       </style>
     </div>

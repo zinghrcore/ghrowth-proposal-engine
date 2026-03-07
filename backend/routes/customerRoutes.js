@@ -9,5 +9,7 @@ router.get('/test', (req, res) => {
 
 // Register new customer
 router.post('/register', customerController.registerCustomer);
+router.put("/region", customerController.updateRegion);
+router.post("/saveClientInformation", customerController.saveClientInformation);
 
 module.exports = router;
