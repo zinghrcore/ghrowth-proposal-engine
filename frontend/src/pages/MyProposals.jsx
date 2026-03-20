@@ -8,6 +8,7 @@ const MyProposals = () => {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!user?.custId) return; // wait until user is loaded
@@ -28,9 +29,20 @@ const MyProposals = () => {
     fetchProposals();
   }, [user?.custId]);
 
-  const filteredProposals = filterStatus
-    ? proposals.filter((p) => (p.status || "not_submitted") === filterStatus)
-    : proposals;
+  // Apply both status filter and search filter
+  const filteredProposals = proposals.filter((p) => {
+  // Status filter
+  const matchesStatus = filterStatus
+    ? (p.status || "not_submitted").toLowerCase() === filterStatus.toLowerCase()
+    : true;
+
+  // Exact client name match (case-insensitive)
+  const matchesSearch = searchQuery
+    ? (p.clientName || "").toLowerCase() === searchQuery.trim().toLowerCase()
+    : true;
+
+  return matchesStatus && matchesSearch;
+});
 
   if (!user) return <p className="text-center mt-20 text-gray-600">Loading...</p>;
 
@@ -44,8 +56,8 @@ const MyProposals = () => {
             My Proposals
           </h1>
 
-          {/* Filter Section */}
-          <div className="flex justify-end mb-6">
+          {/* Filter & Search Section */}
+          <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -57,6 +69,14 @@ const MyProposals = () => {
               <option value="rejected">Rejected</option>
               <option value="not_submitted">Not Submitted</option>
             </select>
+
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by client name..."
+              className="border border-blue-300 rounded-lg p-2 text-sm md:text-base text-blue-900 focus:ring-2 focus:ring-blue-400 focus:border-blue-500 outline-none shadow-sm w-full md:w-1/2"
+            />
           </div>
 
           {loading ? (
@@ -97,7 +117,7 @@ const MyProposals = () => {
                 <tbody className="divide-y divide-gray-100">
                   {filteredProposals.map((p, i) => (
                     <tr
-                      key={p.proposalId}
+                      key={`${p.proposalId}-${i}`}
                       className={`hover:bg-blue-50 transition duration-200 ${
                         i % 2 === 0 ? "bg-white" : "bg-gray-50"
                       }`}

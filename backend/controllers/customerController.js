@@ -1,9 +1,11 @@
-const db = require('../config/db');
+const { pool, poolConnect } = require('../config/db');
 const bcrypt = require('bcryptjs');
 
-// Register new customer (or approver/admin)
+
+// Register new customer
 exports.registerCustomer = async (req, res) => {
   try {
+
     const {
       custName,
       custCHRO,
@@ -12,244 +14,278 @@ exports.registerCustomer = async (req, res) => {
       custRegion,
       custAddress,
       password,
-      custType, // "customer", "approver", or "admin" from frontend
+      custType,
     } = req.body;
 
-    // Encrypt password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ 1️⃣ Determine role safely
-    let role = "customer"; // default
+    let role = "customer";
+
     if (custType && typeof custType === "string") {
       const type = custType.toLowerCase().trim();
       if (type === "approver") role = "approver";
       else if (type === "admin") role = "admin";
     }
 
-    // ✅ 2️⃣ Auto-assign region if not provided for approvers
-    // ✅ 2️⃣ Auto-assign region if not provided for approvers
-let regionToSave = custRegion;
+    let regionToSave = custRegion;
 
-if (role === "approver") {
-  const name = (custName || "").toLowerCase();
+    if (role === "approver") {
+      const name = (custName || "").toLowerCase();
 
-  // Map approvers to regions
-  if (name.includes("prasad")) {
-    regionToSave = "Global"; // Prasad covers all regions for special approvals
-  } else if (name.includes("chandru") || name.includes("chandra")) {
-    regionToSave = "Middle East & Africa";
-  } else if (name.includes("rajat")) {
-    regionToSave = "South East Asia";
-  } else if (name.includes("rohan")) {
-    regionToSave = "India";
-  } else {
-    regionToSave = "India"; // default fallback
-  }
-}
+      if (name.includes("prasad")) regionToSave = "Global";
+      else if (name.includes("chandru") || name.includes("chandra")) regionToSave = "Middle East & Africa";
+      else if (name.includes("rajat")) regionToSave = "South East Asia";
+      else if (name.includes("rohan")) regionToSave = "India";
+      else regionToSave = "India";
+    }
 
-    // ✅ 3️⃣ Insert into DB
-    const query = `
-      INSERT INTO zhrcustomer 
-      (custName, custCHRO, custCHROEmail, custCHROPhone, custRegion, custAddress, password, role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    await poolConnect;
 
-    await db.query(query, [
-      custName,
-      custCHRO,
-      custCHROEmail,
-      custCHROPhone,
-      regionToSave,
-      custAddress,
-      hashedPassword,
+    await pool.request()
+      .input("custName", custName)
+      .input("custCHRO", custCHRO)
+      .input("custCHROEmail", custCHROEmail)
+      .input("custCHROPhone", custCHROPhone)
+      .input("custRegion", regionToSave)
+      .input("custAddress", custAddress)
+      .input("password", hashedPassword)
+      .input("role", role)
+      .query(`
+        INSERT INTO zhrcustomer
+        (custName,custCHRO,custCHROEmail,custCHROPhone,custRegion,custAddress,password,role)
+        VALUES
+        (@custName,@custCHRO,@custCHROEmail,@custCHROPhone,@custRegion,@custAddress,@password,@role)
+      `);
+
+    res.status(201).json({
+      message: "Registration successful",
       role,
-    ]);
+      region: regionToSave
+    });
 
-    res
-      .status(201)
-      .json({ message: "Registration successful", role, region: regionToSave });
   } catch (error) {
+
     console.error("Registration Error:", error);
     res.status(500).json({ error: "Registration failed" });
+
   }
 };
 
+
+
 // Login
 exports.login = async (req, res) => {
+
   try {
+
     const { email, password } = req.body;
 
-    // Fetch user by email
-    const [rows] = await db.query('SELECT * FROM zhrcustomer WHERE custCHROEmail = ?', [email]);
+    await poolConnect;
 
-    if (rows.length === 0) {
-      return res.status(400).json({ message: 'User not found' });
-    }
+    const result = await pool.request()
+      .input("email", email)
+      .query(`
+        SELECT *
+        FROM zhrcustomer
+        WHERE custCHROEmail=@email
+      `);
+
+    const rows = result.recordset;
+
+    if (!rows.length)
+      return res.status(400).json({ message: "User not found" });
 
     const user = rows[0];
 
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid password' });
-    }
 
-    // Use role safely from database
-    let role = user.role ? user.role.toString().trim().toLowerCase() : 'customer';
-    if (!['admin', 'approver', 'customer'].includes(role)) {
-      role = 'customer';
-    }
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid password" });
 
-    // Send response (no password)
+    let role = user.role ? user.role.toString().trim().toLowerCase() : "customer";
+
+    if (!['admin','approver','customer'].includes(role))
+      role = "customer";
+
     res.json({
-      message: 'Login successful',
+      message: "Login successful",
       user: {
         id: user.custId,
         custName: user.custName,
         email: user.custCHROEmail,
-        role, // ✅ Correct normalized role
+        role,
         custType: user.custType,
-        custRegion: user.custRegion,
-      },
+        custRegion: user.custRegion
+      }
     });
+
   } catch (err) {
-    console.error('Login Error:', err);
-    res.status(500).json({ message: 'Server error' });
+
+    console.error("Login Error:", err);
+    res.status(500).json({ message: "Server error" });
+
   }
+
 };
 
-// ✅ New: Update customer region
+
+
+// Update region
 exports.updateRegion = async (req, res) => {
+
   try {
+
     const { custId, region } = req.body;
 
-    if (!custId || !region) {
-      return res.status(400).json({ error: "custId and region are required" });
-    }
+    if (!custId || !region)
+      return res.status(400).json({ error: "custId and region required" });
 
-    const query = "UPDATE zhrcustomer SET custRegion = ? WHERE custId = ?";
-    await db.query(query, [region, custId]);
+    await poolConnect;
+
+    await pool.request()
+      .input("region", region)
+      .input("custId", custId)
+      .query(`
+        UPDATE zhrcustomer
+        SET custRegion=@region
+        WHERE custId=@custId
+      `);
 
     res.json({ message: "Region updated successfully" });
+
   } catch (err) {
+
     console.error("Update Region Error:", err);
     res.status(500).json({ error: "Failed to update region" });
+
   }
+
 };
 
-// Save client information, pricing, and contact details
+
+
+// Save Client Information
 exports.saveClientInformation = async (req, res) => {
+
   try {
+
     const {
       custName,
       industry,
       whiteCollar,
       blueCollar,
       contract,
-      otherEmployees, // optional
+      otherEmployees,
       selectedPlan,
       rateINR,
       rateUSD,
       implementationFee,
       custRegion,
       custAddress,
-      // Client SPOC
       clientName,
       clientEmail,
       clientMobile,
-      // ZingHR SPOC
       zinghrName,
       zinghrEmail,
       zinghrMobile,
       custCHRO,
       custCHROPhone,
-      custCHROEmail,
+      custCHROEmail
     } = req.body;
 
-    console.log("📩 Received client info:", req.body);
+    await poolConnect;
 
-    // 1️⃣ Insert into zhrcustomer
-    const customerQuery = `
-      INSERT INTO zhrcustomer 
-      (custName, custRegion, custAddress, custCHRO, custCHROPhone, custCHROEmail, empCountWhite, empCountBlue, empContract, empOther, role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'customer')
-    `;
+    // Insert customer
+    const customerResult = await pool.request()
+      .input("custName", custName)
+      .input("custRegion", custRegion || "India")
+      .input("custAddress", custAddress || "")
+      .input("custCHRO", custCHRO || "")
+      .input("custCHROPhone", custCHROPhone || "")
+      .input("custCHROEmail", custCHROEmail || "")
+      .input("whiteCollar", whiteCollar || 0)
+      .input("blueCollar", blueCollar || 0)
+      .input("contract", contract || 0)
+      .input("otherEmployees", otherEmployees || 0)
+      .query(`
+        INSERT INTO zhrcustomer
+        (custName,custRegion,custAddress,custCHRO,custCHROPhone,custCHROEmail,
+        empCountWhite,empCountBlue,empContract,empOther,role)
+        OUTPUT INSERTED.custId
+        VALUES
+        (@custName,@custRegion,@custAddress,@custCHRO,@custCHROPhone,@custCHROEmail,
+        @whiteCollar,@blueCollar,@contract,@otherEmployees,'customer')
+      `);
 
-    const [result] = await db.query(customerQuery, [
-      custName,
-      custRegion || "India",
-      custAddress || "",
-      custCHRO || "",
-      custCHROPhone || "",
-      custCHROEmail || "",
-      whiteCollar || 0,
-      blueCollar || 0,
-      contract || 0,
-      otherEmployees || 0,
-    ]);
+    const custId = customerResult.recordset[0].custId;
 
-    const custId = result.insertId;
-    console.log("✅ Customer inserted:", custId);
 
-    // 2️⃣ Insert Client SPOC into a separate table (optional)
+    // Client SPOC
     if (clientName && clientEmail) {
-      const clientSPOCQuery = `
-        INSERT INTO zhrcustomer_spoc
-        (custId, spocName, spocEmail, spocPhone, type)
-        VALUES (?, ?, ?, ?, 'client')
-      `;
-      await db.query(clientSPOCQuery, [
-        custId,
-        clientName,
-        clientEmail,
-        clientMobile || "",
-      ]);
-      console.log("✅ Client SPOC saved");
+
+      await pool.request()
+        .input("custId", custId)
+        .input("spocName", clientName)
+        .input("spocEmail", clientEmail)
+        .input("spocPhone", clientMobile || "")
+        .query(`
+          INSERT INTO zhrcustomer_spoc
+          (custId,spocName,spocEmail,spocPhone,type)
+          VALUES
+          (@custId,@spocName,@spocEmail,@spocPhone,'client')
+        `);
+
     }
 
-    // 3️⃣ Insert ZingHR SPOC
+
+    // ZingHR SPOC
     if (zinghrName && zinghrEmail) {
-      const zinghrSPOCQuery = `
-        INSERT INTO zhrcustomer_spoc
-        (custId, spocName, spocEmail, spocPhone, type)
-        VALUES (?, ?, ?, ?, 'zinghr')
-      `;
-      await db.query(zinghrSPOCQuery, [
-        custId,
-        zinghrName,
-        zinghrEmail,
-        zinghrMobile || "",
-      ]);
-      console.log("✅ ZingHR SPOC saved");
+
+      await pool.request()
+        .input("custId", custId)
+        .input("spocName", zinghrName)
+        .input("spocEmail", zinghrEmail)
+        .input("spocPhone", zinghrMobile || "")
+        .query(`
+          INSERT INTO zhrcustomer_spoc
+          (custId,spocName,spocEmail,spocPhone,type)
+          VALUES
+          (@custId,@spocName,@spocEmail,@spocPhone,'zinghr')
+        `);
+
     }
 
-    // 4️⃣ Map selected plan to modId
+
     let modId = 1;
+
     if (selectedPlan === "ZingHR Pro") modId = 1;
     else if (selectedPlan === "ZingHR Pro Plus") modId = 2;
     else if (selectedPlan === "ZingHR GHROWTH") modId = 3;
 
-    // 5️⃣ Insert into zhrmodcustpricing using custId
-    const pricingQuery = `
-      INSERT INTO zhrmodcustpricing (modId, custTypeId, PriceINR, PriceUSD)
-      VALUES (?, ?, ?, ?)
-    `;
 
-    await db.query(pricingQuery, [
-      modId,
-      custId,
-      rateINR || 0,
-      rateUSD || 0,
-    ]);
+    await pool.request()
+      .input("modId", modId)
+      .input("custId", custId)
+      .input("rateINR", rateINR || 0)
+      .input("rateUSD", rateUSD || 0)
+      .query(`
+        INSERT INTO zhrmodcustpricing
+        (modId,custTypeId,PriceINR,PriceUSD)
+        VALUES
+        (@modId,@custId,@rateINR,@rateUSD)
+      `);
 
-    console.log("✅ Pricing inserted for customer:", custId);
 
     res.status(201).json({
-      message: "Client information and contact info saved successfully",
-      custId,
+      message: "Client information saved successfully",
+      custId
     });
+
   } catch (error) {
-    console.error("❌ Save Client Error:", error);
+
+    console.error("Save Client Error:", error);
     res.status(500).json({ error: "Failed to save client information" });
+
   }
+
 };

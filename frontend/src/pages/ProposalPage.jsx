@@ -8,6 +8,7 @@ import axios from "axios";
 const ProposalPage = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
+   const [isEditing, setIsEditing] = useState(true);
   const params = new URLSearchParams(window.location.search);
 const viewOnly = params.get("mode") === "view"; // true when opened by approver
 
@@ -23,45 +24,57 @@ const viewOnly = params.get("mode") === "view"; // true when opened by approver
 const [loadingApproval, setLoadingApproval] = useState(false);
 const [pendingApprovals, setPendingApprovals] = useState([]);
 const [showAgreement, setShowAgreement] = useState(false);
-
+const [implementationFeePercent, setImplementationFeePercent] = useState(100); // 100%
+const [recurringStartDays, setRecurringStartDays] = useState(30); // 30 days
+const [projectKickoffDays, setProjectKickoffDays] = useState(10); // 10 working days
+const [minEmployees, setMinEmployees] = useState(100); // 100 employees\
+const [isDownloading, setIsDownloading] = useState(false);
+const [annualInflationPercent, setAnnualInflationPercent] = useState(10); // 10%
 
   // ✅ Region and Currency Setup
 const regionInfo = JSON.parse(localStorage.getItem("region")) || { name: "India", currency: "INR" };
 const currencySymbol = regionInfo.currency === "USD" ? "$" : "₹";
-const INR_TO_USD_RATE = 1.94 / 175; // ≈ 0.0110857
+//const INR_TO_USD_RATE = 1.94 / 175; // ≈ 0.0110857
 
-  useEffect(() => {
+ useEffect(() => {
   const info = JSON.parse(localStorage.getItem("clientInfo")) || {};
   const contacts = JSON.parse(localStorage.getItem("contactData")) || {
     client: { name: "-", email: "-", mobile: "-" },
     zinghr: { name: "-", email: "-", mobile: "-" },
   };
-  
+
+  // Convert rate to number safely
+  if (info.priceDetails?.rate) {
+    info.priceDetails.rate = Number(info.priceDetails.rate);
+  }
+
   if (!info.custId) {
     console.error("❌ Client ID missing in localStorage");
     alert("Client ID is missing! Cannot send for approval.");
   }
-  
+
   setClientInfo(info);
   setContactData(contacts);
 }, []);
-useEffect(() => {
-  if (clientInfo?.priceDetails?.rate) {
-    setClientInfo((prev) => ({
-      ...prev,
-      priceDetails: {
-        ...prev.priceDetails,
-        rate: Number(prev.priceDetails.rate),
-      },
-    }));
-  }
-}, [clientInfo]);
 
   const selectedPlan = clientInfo.selectedPlan || "ZingHR Pro Plus";
   const source = localStorage.getItem("source") || "package"; // 'exploreModules' or 'package'
-const selectedModulesData = JSON.parse(localStorage.getItem("selectedModules")) || null;
+const selectedModulesData =
+  JSON.parse(localStorage.getItem("selectedModules")) || [];
+
+const selectedModules = Array.isArray(selectedModulesData)
+  ? selectedModulesData
+  : selectedModulesData.modules || [];
+const moduleAssignments =
+  JSON.parse(localStorage.getItem("moduleAssignments")) || {};
+  console.log("Selected Modules:", selectedModulesData);
+  console.log("Module Assignments:", moduleAssignments);
+  const modulesAreDifferent = Object.values(moduleAssignments).some(
+  (types) => types && types.length > 0
+);
   // ✅ Use saved pricing directly from ClientInformation
 const price = clientInfo.priceDetails || {};
+const discountBreakdown = price.discountBreakdown || [];  
 let rate = price.rate || 0;
 let implementationFee = price.implementationFee || 0;
 const effectiveEmployees = price.effectiveEmployees || 0;
@@ -80,10 +93,10 @@ const contract =
 
 // ✅ Calculate effective employees properly
 // ✅ Proposal and user details for approval process
-const proposalId = 1; // You can dynamically replace this later with actual ID from DB
-const customerId = clientInfo.custId || 101; // the client being pitched
-const salesPersonId = user?.custId || 201; // logged-in salesperson
-const region = regionInfo.name || "India";
+//const proposalId = 1; // You can dynamically replace this later with actual ID from DB
+//const customerId = clientInfo.custId || 101; // the client being pitched
+//const salesPersonId = user?.custId || 201; // logged-in salesperson
+//const region = regionInfo.name || "India";
 
   const currentDate = new Date().toLocaleDateString("en-GB", {
     day: "numeric",
@@ -96,7 +109,7 @@ const region = regionInfo.name || "India";
   year: "numeric",
 });
 
-  const proposalNumber = `ZHR-${Math.floor(Math.random() * 100000000)}`;
+  //const proposalNumber = `ZHR-${Math.floor(Math.random() * 100000000)}`;
 
   // Fetch package features
   useEffect(() => {
@@ -203,15 +216,15 @@ if (wasHidden) setShowAgreement(false);
   }
 };
 
-
-// 📄 Download PDF Function
 const handleDownloadPDF = async () => {
   try {
-    // ✅ Temporarily show SaaS Agreement while generating PDF
-const wasHidden = !showAgreement;
-if (wasHidden) setShowAgreement(true);
-await new Promise(resolve => setTimeout(resolve, 500)); // wait for render
-    // ✅ Enter PDF mode
+    setIsDownloading(true); // ✅ ADD THIS
+
+    const wasHidden = !showAgreement;
+    if (wasHidden) setShowAgreement(true);
+
+    await new Promise(resolve => setTimeout(resolve, 500)); // wait for render
+
     document.body.classList.add("pdf-export");
 
     const element = document.querySelector("main");
@@ -229,7 +242,7 @@ await new Promise(resolve => setTimeout(resolve, 500)); // wait for render
 
     const pdfBlob = await html2pdf().set(opt).from(element).outputPdf("blob");
 
-    // ✅ Upload & download logic remains same
+    // Upload logic (same)
     const storedProposalId = localStorage.getItem("proposalId");
     if (storedProposalId) {
       const formData = new FormData();
@@ -239,11 +252,9 @@ await new Promise(resolve => setTimeout(resolve, 500)); // wait for render
       await axios.post("http://localhost:5000/api/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
-      alert("✅ PDF uploaded and downloaded successfully!");
     }
 
-    // ✅ Trigger download
+    // Download
     const url = URL.createObjectURL(pdfBlob);
     const a = document.createElement("a");
     a.href = url;
@@ -252,12 +263,12 @@ await new Promise(resolve => setTimeout(resolve, 500)); // wait for render
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+
   } catch (error) {
     console.error("❌ Error generating/downloading PDF:", error);
-    alert("Failed to generate PDF.");
   } finally {
-    // ✅ Restore UI
     document.body.classList.remove("pdf-export");
+    setIsDownloading(false); // ✅ ADD THIS
   }
 };
 
@@ -283,7 +294,7 @@ console.log("Parsed Total →", Number(price?.totalMonthly || totalMonthly || 0)
 
  // ✅ Determine approver based on region and thresholds
 const clientRegion = (clientInfo.custRegion || regionInfo.name || "India").toLowerCase();
-const currency = regionInfo.currency || "INR";
+//const currency = regionInfo.currency || "INR";
 
 // Always fetch the *latest* totalMonthly from all possible sources
 const total =
@@ -292,37 +303,26 @@ const total =
   Number(totalMonthly) ||
   0;
 
-console.log("💰 Final total used for approver logic →", total, currency);
+// ✅ Approver selection using array + thresholds
+const allApprovers = [
+  { custId: 2, name: "Prasad", region: "global", threshold: 500000 },
+  { custId: 5, name: "Rohan Menon", region: "india", threshold: 0 },
+  { custId: 3, name: "Chandru S", region: "mea", threshold: 0 },
+  { custId: 4, name: "Rajat Luthra", region: "sea", threshold: 0 },
+];
 
-const INR_THRESHOLD = 500000;
-const USD_THRESHOLD = 5511.05;
+// Filter approvers for client region or global
+const regionApprovers = allApprovers.filter(a =>
+  clientRegion.includes(a.region.toLowerCase()) || a.region === "global"
+);
 
-let approverId = user.custId; // default fallback
+// Select first approver whose threshold <= total
+const selectedApprover = regionApprovers.find(a => total >= a.threshold);
 
-// --- CASE 1: High-value proposal → Prasad
-if (
-  (currency === "INR" && total >= INR_THRESHOLD) ||
-  (currency === "USD" && total >= USD_THRESHOLD)
-) {
-  approverId = 2; // Prasad
-  console.log("🚨 Routed to Prasad (custId: 2)");
-}
-// --- CASE 2: Region-based routing (if not Prasad)
-else if (clientRegion.includes("india")) {
-  approverId = 355; // Rohan Menon
-  console.log("📌 India proposal → Rohan Menon (custId: 355)");
-} else if (clientRegion.includes("middle east") || clientRegion.includes("africa")) {
-  approverId = 3; // Chandru S
-  console.log("🌍 MEA proposal → Chandru S (custId: 3)");
-} else if (clientRegion.includes("south east asia")) {
-  approverId = 4; // Rajat Luthra
-  console.log("🌏 SEA proposal → Rajat Luthra (custId: 4)");
-} else {
-  approverId = user.custId;
-  console.log("ℹ️ Default approver → salesperson (custId:", user.custId, ")");
-}
+// Fallback to salesperson if no match
+const approverId = selectedApprover?.custId || user.custId;
 
-console.log("✅ Final approverId selected:", approverId);
+console.log("🚨 Routed to", selectedApprover?.name || "Salesperson", `(custId: ${approverId})`);
 
     // 1️⃣ Create proposal in backend
     const response = await axios.post(
@@ -798,6 +798,31 @@ useEffect(() => {
     </div>
   </div>
 
+  {/* 🔥 Discount Breakdown UI */}
+{discountBreakdown.length > 0 && (
+  <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+    <h3 className="text-md font-semibold text-green-800 mb-2">
+      🎉 Discounts Applied
+    </h3>
+
+    {discountBreakdown
+  .filter(item => item.label !== "Base Price") // 🔥 REMOVE BASE PRICE
+  .map((item, index) => (
+    <div
+      key={index}
+      className="flex justify-between text-sm text-gray-700 py-1"
+    >
+      <span>{item.label}</span>
+
+      <span className="text-green-700 font-medium">
+        {item.percent ? `${item.percent}%` : ""}
+      </span>
+    </div>
+))}
+
+  </div>
+)}
+
   {/* One-Time Implementation Cost */}
   <div className="border border-yellow-400 rounded-xl bg-yellow-50 p-4 flex justify-between items-center">
     <div>
@@ -810,8 +835,6 @@ useEffect(() => {
   </div>
 </section>
 
-
-       
 {source !== "exploreModules" && (
   <section className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
     <h2 className="text-lg font-bold text-blue-900 mb-4">
@@ -840,51 +863,70 @@ useEffect(() => {
 
 {/* --- Modules Included / Selected Modules --- */}
 {source === "exploreModules" ? (
-  // ✅ When modules are manually selected
   <section className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
     <h2 className="text-lg font-bold text-blue-900 mb-5">
       Selected Modules
     </h2>
 
-    {Object.entries(
-      (selectedModulesData?.modules || []).reduce((acc, mod) => {
-        const category = mod.modObjective || "Other";
-        if (!acc[category]) acc[category] = [];
-        acc[category].push(mod);
-        return acc;
-      }, {})
-    ).map(([category, modules]) => (
-      <div key={category} className="mb-8">
-        <div className="bg-blue-700 text-white px-4 py-2 rounded-t-lg font-semibold text-sm uppercase tracking-wide">
-          {category}
-        </div>
-        <div className="border border-gray-200 border-t-0 rounded-b-lg">
-          {modules.map((mod, idx) => (
-            <div
-              key={idx}
-              className="flex flex-col border-b border-gray-100 p-4 hover:bg-gray-50 transition-all duration-200"
+    {modulesAreDifferent ? (
+  (selectedModulesData?.modules || []).map((mod) => {
+    const id = mod.modId || mod.id || mod.moduleId;
+    const assignedTypes = moduleAssignments[id] || [];
+
+    if (assignedTypes.length === 0) return null;
+
+    return (
+      <div key={id} className="p-4 border rounded mb-3">
+
+        {/* 👇 Employee Types */}
+        <div className="mb-2 flex flex-wrap gap-2">
+          {assignedTypes.map((type) => (
+            <span
+              key={type}
+              className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-700 rounded"
             >
-              <div className="flex items-start gap-2">
-                <span className="text-green-600 mt-1 text-lg">✓</span>
-                <div>
-                  <h3 className="font-semibold text-blue-800 text-base">
-                    {mod.modName}
-                  </h3>
-                  <p className="text-gray-600 text-sm mt-1 leading-relaxed">
-                    {mod.modFeatureList ||
-                      mod.modDesc ||
-                      "No details available."}
-                  </p>
-                  <p className="text-gray-500 text-xs mt-1">
-                    Rate: ₹{mod.PriceINR || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
+              {type}
+            </span>
           ))}
         </div>
+
+        {/* Module Name */}
+        <h3 className="font-semibold text-blue-800">{mod.modName}</h3>
+
+        {/* Description */}
+        <p className="text-gray-600 text-sm">
+          {mod.modFeatureList || mod.modDesc}
+        </p>
       </div>
-    ))}
+    );
+  })
+) : (
+      Object.entries(
+        (selectedModulesData?.modules || []).reduce((acc, mod) => {
+          const category = mod.modObjective || "Other";
+          if (!acc[category]) acc[category] = [];
+          acc[category].push(mod);
+          return acc;
+        }, {})
+      ).map(([category, modules]) => (
+        <div key={category} className="mb-8">
+          <div className="bg-blue-700 text-white px-4 py-2 rounded-t-lg font-semibold text-sm uppercase">
+            {category}
+          </div>
+
+          <div className="border border-gray-200 border-t-0 rounded-b-lg">
+            {modules.map((mod, idx) => (
+              <div key={idx} className="p-4 border-b">
+                <h3 className="font-semibold text-blue-800">{mod.modName}</h3>
+                <p className="text-gray-600 text-sm">
+                  {mod.modFeatureList || mod.modDesc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))
+    )}
   </section>
 ) : (
   // ✅ When a package plan is chosen
@@ -996,20 +1038,96 @@ useEffect(() => {
   </div>
 </section>
 
+{/* --- Terms & Conditions --- */}
+<section className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
+  <h2 className="text-lg font-bold text-blue-900 mb-4">Terms & Conditions</h2>
 
-        {/* --- Terms & Conditions --- */}
-        <section className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
-          <h2 className="text-lg font-bold text-blue-900 mb-3">Terms & Conditions</h2>
-          <ul className="list-disc list-inside text-gray-700 text-sm leading-relaxed">
-            <li>One-time implementation fee is payable separately before go-live.</li>
-            <li>Minimum billing applicable for 1,000 employees.</li>
-            <li>All prices are exclusive of applicable taxes (GST/VAT).</li>
-            <li>Agreement auto-renews annually unless terminated with 90 days notice.</li>
-            <li>Customization services charged at Rs. 15,000 per effort day.</li>
-            <li>This proposal is valid for 30 days from the date of issue.</li>
-          </ul>
-        </section>
+  <ul className="list-disc pl-6 space-y-2 text-gray-700 text-sm">
+    <li className="text-justify">
+      To Get Started: On receipt of the formal Purchase Order, Cnergyis Infotech will raise Invoice for one-time non-refundable 
+      {isDownloading ? (
+  <span className="mx-1">{implementationFeePercent}%</span>
+) : (
+  <>
+    <input
+      type="number"
+      value={implementationFeePercent}
+      onChange={(e) => setImplementationFeePercent(Number(e.target.value))}
+      className="w-20 border-b border-gray-400 text-center mx-1 outline-none bg-transparent"
+    />
+    %
+    {" "}
+  </>
+)}
+      implementation fee along with the Annual Recurring Rental to be paid in advance before the kick-start of the project.
+    </li>
 
+    <li className="text-justify">
+      The regular Quarterly Recurring Rental billing (Invoice) starts from 
+     {isDownloading ? (
+  <span className="mx-1">{recurringStartDays}</span>
+) : (
+  <input
+    type="number"
+    value={recurringStartDays}
+    onChange={(e) => setRecurringStartDays(Number(e.target.value))}
+    className="w-20 border-b border-gray-400 text-center mx-1 outline-none bg-transparent"
+  />
+)}
+      days or Go-Live from the project kick-off start date whichever is earlier.
+    </li>
+
+    <li className="text-justify">
+      Project Kick-off will be carried out within 10 working days from the date of receipt of formal Purchase Order (PO), advance payments & signed copy of Online SaaS agreement.
+    </li>
+
+    <li className="text-justify">
+      Invoicing: Subsequent Invoicing will be raised 15 days prior to the expiry of earlier billing period. All payments to be done through online RTGS/NEFT mode.
+    </li>
+
+    <li className="text-justify">
+      Invoice will be raised on active employee counts for any given month + F&F settlement for the month.
+    </li>
+
+    <li className="text-justify">
+      The above pricing is for minimum of 
+     {isDownloading ? (
+  <span className="mx-1">{minEmployees}</span>
+) : (
+  <input
+    type="number"
+    value={minEmployees}
+    onChange={(e) => setMinEmployees(Number(e.target.value))}
+    className="w-20 border-b border-gray-400 text-center mx-1 outline-none bg-transparent"
+  />
+)}
+      employees mentioned in the pricing table. Should there be an increase in the number of active employees, invoice will be raised on actual employee count as per the slab pricing defined.
+    </li>
+
+    <li className="text-justify">
+      Taxes will be extra and applicable as per the prevalent rates.
+    </li>
+
+    <li className="text-justify">
+      Annual Inflation causes an annual price rise of 
+      {isDownloading ? (
+  <span className="mx-1">{annualInflationPercent}%</span>
+) : (
+  <>
+    <input
+      type="number"
+      value={annualInflationPercent}
+      onChange={(e) => setAnnualInflationPercent(Number(e.target.value))}
+      className="w-20 border-b border-gray-400 text-center mx-1 outline-none bg-transparent"
+    />
+    %
+    {" "}
+  </>
+)}
+       effective from every 13th month onwards.
+    </li>
+  </ul>
+</section>
         <div className="text-center text-gray-600 text-xs mb-10">
           © 2026 ZingHR Technologies Pvt. Ltd. | Enterprise HCM Solutions
           <br />
@@ -1122,6 +1240,9 @@ const printStyles = `
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-in-out;
   }
+    input {
+  display: inline-block;
+}
 `;
 
 export default ProposalPage;

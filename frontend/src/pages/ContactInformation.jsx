@@ -188,7 +188,6 @@ const ContactInformation = () => {
           </div>
         </div>
       </main>
-
       <Footer />
     </div>
   );

@@ -42,6 +42,20 @@ app.get('/', (req, res) => {
   res.send('Server is running 🚀');
 });
 
+// ✅ TEST DATABASE CONNECTION
+app.get("/test-db", async (req, res) => {
+  try {
+    const db = require("./config/db");
+
+    const result = await db.request().query("SELECT 1 AS test");
+
+    res.json(result.recordset);
+  } catch (error) {
+    console.error("DB Test Error:", error);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
+
 // --- Start server ---
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

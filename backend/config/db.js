@@ -1,10 +1,21 @@
-const mysql = require('mysql2/promise');
+const sql = require('mssql');
 
-const db = mysql.createPool({
-  host: 'localhost',
-  user: 'root',        // your MySQL username
-  password: 'Zing@123',        // your MySQL password (keep empty if none)
-  database: 'zhrproposalengine'  // your database name
-});
+const config = {
+  user: 'sa',                
+  password: 'Zing@123',  
+  server: 'localhost',       
+  database: 'ZHRProposalEngine',
+  options: {
+    encrypt: false,
+    trustServerCertificate: true
+  }
+};
 
-module.exports = db;
+const pool = new sql.ConnectionPool(config);
+const poolConnect = pool.connect();
+
+module.exports = {
+  sql,
+  pool,
+  poolConnect
+};

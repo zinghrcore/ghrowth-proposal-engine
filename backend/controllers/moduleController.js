@@ -1,16 +1,17 @@
-const db = require('../config/db');
+const { pool, poolConnect } = require('../config/db'); // ✅ destructure pool and poolConnect
 
 // ✅ Get all modules
 exports.getAllModules = async (req, res) => {
   try {
-    const [modules] = await db.query(`
+    await poolConnect; // ensure connection
+    const result = await pool.request().query(`
       SELECT modId, modName, modDesc, modFeatureList, modObjective,
              pkgPro, pkgProPlus, pkgGrowth, displayOrder,
              PriceINR, PriceUSD
       FROM zhrmodulelist
       ORDER BY modId ASC
     `);
-    res.json(modules);
+    res.json(result.recordset);
   } catch (err) {
     console.error('Error fetching modules:', err);
     res.status(500).json({ message: 'Server error' });
@@ -20,14 +21,17 @@ exports.getAllModules = async (req, res) => {
 // ✅ Get single module by ID
 exports.getModuleById = async (req, res) => {
   try {
+    await poolConnect;
     const { id } = req.params;
-    const [module] = await db.query('SELECT * FROM zhrmodulelist WHERE modId = ?', [id]);
+    const result = await pool.request()
+      .input('id', id)
+      .query('SELECT * FROM zhrmodulelist WHERE modId = @id');
 
-    if (module.length === 0) {
+    if (result.recordset.length === 0) {
       return res.status(404).json({ message: 'Module not found' });
     }
 
-    res.json(module[0]);
+    res.json(result.recordset[0]);
   } catch (err) {
     console.error('Error fetching module:', err);
     res.status(500).json({ message: 'Server error' });
@@ -37,18 +41,25 @@ exports.getModuleById = async (req, res) => {
 // ✅ Add a new module
 exports.createModule = async (req, res) => {
   try {
+    await poolConnect;
     const { modName, modDesc, modFeatureList, modObjective } = req.body;
 
     if (!modName || !modDesc) {
       return res.status(400).json({ message: 'Module name and description are required' });
     }
 
-    const [result] = await db.query(
-      'INSERT INTO zhrmodulelist (modName, modDesc, modFeatureList, modObjective) VALUES (?, ?, ?, ?)',
-      [modName, modDesc, modFeatureList || '', modObjective || '']
-    );
+    const result = await pool.request()
+      .input('modName', modName)
+      .input('modDesc', modDesc)
+      .input('modFeatureList', modFeatureList || '')
+      .input('modObjective', modObjective || '')
+      .query(`
+        INSERT INTO zhrmodulelist (modName, modDesc, modFeatureList, modObjective)
+        VALUES (@modName, @modDesc, @modFeatureList, @modObjective);
+        SELECT SCOPE_IDENTITY() AS insertId;
+      `);
 
-    res.status(201).json({ message: 'Module added successfully', modId: result.insertId });
+    res.status(201).json({ message: 'Module added successfully', modId: result.recordset[0].insertId });
   } catch (err) {
     console.error('Error creating module:', err);
     res.status(500).json({ message: 'Server error' });
@@ -58,18 +69,32 @@ exports.createModule = async (req, res) => {
 // ✅ Update single module
 exports.updateModule = async (req, res) => {
   try {
+    await poolConnect;
     const { id } = req.params;
     const { modName, modDesc, modFeatureList, modObjective } = req.body;
 
-    const [existing] = await db.query('SELECT * FROM zhrmodulelist WHERE modId = ?', [id]);
-    if (existing.length === 0) {
+    const existing = await pool.request()
+      .input('id', id)
+      .query('SELECT * FROM zhrmodulelist WHERE modId = @id');
+
+    if (existing.recordset.length === 0) {
       return res.status(404).json({ message: 'Module not found' });
     }
 
-    await db.query(
-      'UPDATE zhrmodulelist SET modName=?, modDesc=?, modFeatureList=?, modObjective=? WHERE modId=?',
-      [modName, modDesc, modFeatureList, modObjective, id]
-    );
+    await pool.request()
+      .input('modName', modName)
+      .input('modDesc', modDesc)
+      .input('modFeatureList', modFeatureList)
+      .input('modObjective', modObjective)
+      .input('id', id)
+      .query(`
+        UPDATE zhrmodulelist
+        SET modName=@modName,
+            modDesc=@modDesc,
+            modFeatureList=@modFeatureList,
+            modObjective=@modObjective
+        WHERE modId=@id
+      `);
 
     res.json({ message: 'Module updated successfully' });
   } catch (err) {
@@ -81,14 +106,20 @@ exports.updateModule = async (req, res) => {
 // ✅ Delete a module
 exports.deleteModule = async (req, res) => {
   try {
+    await poolConnect;
     const { id } = req.params;
-    const [existing] = await db.query('SELECT * FROM zhrmodulelist WHERE modId = ?', [id]);
+    const existing = await pool.request()
+      .input('id', id)
+      .query('SELECT * FROM zhrmodulelist WHERE modId = @id');
 
-    if (existing.length === 0) {
+    if (existing.recordset.length === 0) {
       return res.status(404).json({ message: 'Module not found' });
     }
 
-    await db.query('DELETE FROM zhrmodulelist WHERE modId = ?', [id]);
+    await pool.request()
+      .input('id', id)
+      .query('DELETE FROM zhrmodulelist WHERE modId = @id');
+
     res.json({ message: 'Module deleted successfully' });
   } catch (err) {
     console.error('Error deleting module:', err);
@@ -96,10 +127,11 @@ exports.deleteModule = async (req, res) => {
   }
 };
 
-// ✅ Bulk update modules (used for dashboard edit modal)
+// ✅ Bulk update modules
 exports.updateModulesBulk = async (req, res) => {
   try {
-    const { modules } = req.body; // array of module objects with modId or tempId
+    await poolConnect;
+    const { modules } = req.body;
 
     if (!Array.isArray(modules)) {
       return res.status(400).json({ message: 'Modules array is required' });
@@ -107,56 +139,62 @@ exports.updateModulesBulk = async (req, res) => {
 
     const promises = modules.map(async (mod) => {
       if (mod.modId) {
-        // Existing module, update
-        const [existing] = await db.query('SELECT * FROM zhrmodulelist WHERE modId = ?', [mod.modId]);
-        if (existing.length > 0) {
-          return db.query(
-            'UPDATE zhrmodulelist SET modName=?, modDesc=?, modFeatureList=?, modObjective=?, pkgPro=?, pkgProPlus=?, pkgGrowth=? WHERE modId=?',
-            [
-              mod.modName,
-              mod.modDesc,
-              mod.modFeatureList || '',
-              mod.modObjective || '',
-              mod.pkgPro || 'Not included',
-              mod.pkgProPlus || 'Not included',
-              mod.pkgGrowth || 'Not included',
-              mod.modId
-            ]
-          );
+        const existing = await pool.request()
+          .input('modId', mod.modId)
+          .query('SELECT * FROM zhrmodulelist WHERE modId = @modId');
+
+        if (existing.recordset.length > 0) {
+          return pool.request()
+            .input('modName', mod.modName)
+            .input('modDesc', mod.modDesc)
+            .input('modFeatureList', mod.modFeatureList || '')
+            .input('modObjective', mod.modObjective || '')
+            .input('pkgPro', mod.pkgPro || 'Not included')
+            .input('pkgProPlus', mod.pkgProPlus || 'Not included')
+            .input('pkgGrowth', mod.pkgGrowth || 'Not included')
+            .input('modId', mod.modId)
+            .query(`
+              UPDATE zhrmodulelist
+              SET modName=@modName,
+                  modDesc=@modDesc,
+                  modFeatureList=@modFeatureList,
+                  modObjective=@modObjective,
+                  pkgPro=@pkgPro,
+                  pkgProPlus=@pkgProPlus,
+                  pkgGrowth=@pkgGrowth
+              WHERE modId=@modId
+            `);
         } else {
-          // If somehow modId doesn't exist, insert as new
-          return db.query(
-            'INSERT INTO zhrmodulelist (modName, modDesc, modFeatureList, modObjective, pkgPro, pkgProPlus, pkgGrowth) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [
-              mod.modName,
-              mod.modDesc,
-              mod.modFeatureList || '',
-              mod.modObjective || '',
-              mod.pkgPro || 'Not included',
-              mod.pkgProPlus || 'Not included',
-              mod.pkgGrowth || 'Not included'
-            ]
-          );
+          return pool.request()
+            .input('modName', mod.modName)
+            .input('modDesc', mod.modDesc)
+            .input('modFeatureList', mod.modFeatureList || '')
+            .input('modObjective', mod.modObjective || '')
+            .input('pkgPro', mod.pkgPro || 'Not included')
+            .input('pkgProPlus', mod.pkgProPlus || 'Not included')
+            .input('pkgGrowth', mod.pkgGrowth || 'Not included')
+            .query(`
+              INSERT INTO zhrmodulelist (modName, modDesc, modFeatureList, modObjective, pkgPro, pkgProPlus, pkgGrowth)
+              VALUES (@modName,@modDesc,@modFeatureList,@modObjective,@pkgPro,@pkgProPlus,@pkgGrowth)
+            `);
         }
       } else {
-        // New module, insert
-        return db.query(
-          'INSERT INTO zhrmodulelist (modName, modDesc, modFeatureList, modObjective, pkgPro, pkgProPlus, pkgGrowth) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [
-            mod.modName,
-            mod.modDesc,
-            mod.modFeatureList || '',
-            mod.modObjective || '',
-            mod.pkgPro || 'Not included',
-            mod.pkgProPlus || 'Not included',
-            mod.pkgGrowth || 'Not included'
-          ]
-        );
+        return pool.request()
+          .input('modName', mod.modName)
+          .input('modDesc', mod.modDesc)
+          .input('modFeatureList', mod.modFeatureList || '')
+          .input('modObjective', mod.modObjective || '')
+          .input('pkgPro', mod.pkgPro || 'Not included')
+          .input('pkgProPlus', mod.pkgProPlus || 'Not included')
+          .input('pkgGrowth', mod.pkgGrowth || 'Not included')
+          .query(`
+            INSERT INTO zhrmodulelist (modName, modDesc, modFeatureList, modObjective, pkgPro, pkgProPlus, pkgGrowth)
+            VALUES (@modName,@modDesc,@modFeatureList,@modObjective,@pkgPro,@pkgProPlus,@pkgGrowth)
+          `);
       }
     });
 
     await Promise.all(promises);
-
     res.json({ message: 'Modules updated successfully' });
   } catch (err) {
     console.error('Error updating modules in bulk:', err);
@@ -164,38 +202,32 @@ exports.updateModulesBulk = async (req, res) => {
   }
 };
 
-// ✅ Feature Comparison API (Updated to use actual package names)
+// ✅ Feature Comparison API
 exports.getFeatureComparison = async (req, res) => {
   try {
-    // 1️⃣ Get all packages
-    const [packages] = await db.query(`
-      SELECT pkgId, pkgName, pkgLabel, pkgDesc, pkgPrice 
-      FROM zhrpackagelist 
-      ORDER BY pkgId ASC
-    `);
+    await poolConnect;
+    const packagesResult = await pool.request()
+      .query(`SELECT pkgId, pkgName, pkgLabel, pkgDesc, pkgPrice FROM zhrpackagelist ORDER BY pkgId ASC`);
+    const packages = packagesResult.recordset;
 
-    // 2️⃣ Split pkgDesc into individual features for Plan Benefits
     const planBenefits = [];
     packages.forEach(pkg => {
       if (pkg.pkgDesc) {
         pkg.pkgDesc.split(',').forEach(feature => {
           const trimmed = feature.trim();
-          if (!planBenefits.find(f => f.feature === trimmed)) {
-            planBenefits.push({ feature: trimmed });
-          }
+          if (!planBenefits.find(f => f.feature === trimmed)) planBenefits.push({ feature: trimmed });
         });
       }
     });
 
-    // 3️⃣ Get all modules
-    const [modulesRows] = await db.query(`
-      SELECT modId, modName, modDesc, modObjective, pkgPro, pkgProPlus, pkgGrowth, PriceINR, PriceUSD
-      FROM zhrmodulelist
-      ORDER BY 
-  FIELD(modObjective, 'Foundation', 'Talent Acquisition', 'Organisation Management', 'Workforce Productivity', 'Talent Management', 'Employee Engagement', 'Business Enhancers', 'Agentic AI'),
-  displayOrder ASC`);
+    const modulesResult = await pool.request()
+      .query(`
+        SELECT modId, modName, modDesc, modObjective, pkgPro, pkgProPlus, pkgGrowth, PriceINR, PriceUSD
+        FROM zhrmodulelist
+        ORDER BY displayOrder ASC
+      `);
+    const modulesRows = modulesResult.recordset;
 
-    // 4️⃣ Map modules with exact package names (important fix)
     const modulesArray = modulesRows.map(mod => ({
       modId: mod.modId,
       modName: mod.modName,
@@ -210,7 +242,6 @@ exports.getFeatureComparison = async (req, res) => {
       }
     }));
 
-    // 5️⃣ Combine Plan Benefits as pseudo-modules
     const planBenefitsModules = planBenefits.map(f => ({
       modId: `plan-${f.feature}`,
       modName: f.feature,
@@ -222,12 +253,7 @@ exports.getFeatureComparison = async (req, res) => {
       }, {})
     }));
 
-    // 6️⃣ Send response
-    res.json({
-      packages,
-      modules: [...planBenefitsModules, ...modulesArray]
-    });
-
+    res.json({ packages, modules: [...planBenefitsModules, ...modulesArray] });
   } catch (err) {
     console.error("Error fetching feature comparison:", err);
     res.status(500).json({ message: "Server error" });
@@ -237,67 +263,53 @@ exports.getFeatureComparison = async (req, res) => {
 // ✅ Get module counts per plan
 exports.getModuleCounts = async (req, res) => {
   try {
-    const [counts] = await db.query(`
+    await poolConnect;
+    const result = await pool.request().query(`
       SELECT
         SUM(CASE WHEN pkgPro = 'Included' THEN 1 ELSE 0 END) AS Pro,
         SUM(CASE WHEN pkgProPlus = 'Included' THEN 1 ELSE 0 END) AS ProPlus,
         SUM(CASE WHEN pkgGrowth = 'Included' THEN 1 ELSE 0 END) AS GHROWTH
       FROM zhrmodulelist
     `);
-
-    res.json(counts[0]); // returns { Pro: 14, ProPlus: 19, GHROWTH: 22 }
+    res.json(result.recordset[0]);
   } catch (err) {
     console.error('Error fetching module counts:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
-// ✅ Update inclusion status for a specific module and package (for admin toggle)
-// ✅ Toggle module inclusion/exclusion for a specific package
+
+// ✅ Update inclusion status for a specific module and package
 exports.updateModulePackageStatus = async (req, res) => {
   try {
+    await poolConnect;
     const { moduleName, packageName, status } = req.body;
 
     if (!moduleName || !packageName || !status) {
       return res.status(400).json({ message: "moduleName, packageName, and status are required" });
     }
 
-    // Map package name to column
     let columnName;
     switch (packageName.toUpperCase()) {
-      case "ZINGHR PRO":
-        columnName = "pkgPro";
-        break;
-      case "ZINGHR PRO PLUS":
-        columnName = "pkgProPlus";
-        break;
-      case "ZINGHR GHROWTH":
-        columnName = "pkgGrowth";
-        break;
-      default:
-        return res.status(400).json({ message: "Invalid package name" });
+      case "ZINGHR PRO": columnName = "pkgPro"; break;
+      case "ZINGHR PRO PLUS": columnName = "pkgProPlus"; break;
+      case "ZINGHR GHROWTH": columnName = "pkgGrowth"; break;
+      default: return res.status(400).json({ message: "Invalid package name" });
     }
 
     const newStatus = status === "included" ? "Included" : "Not included";
 
-    // Update the module record
-    const [result] = await db.query(
-      `UPDATE zhrmodulelist SET ${columnName} = ? WHERE modName = ?`,
-      [newStatus, moduleName]
-    );
+    const result = await pool.request()
+      .input('newStatus', newStatus)
+      .input('moduleName', moduleName)
+      .query(`UPDATE zhrmodulelist SET ${columnName} = @newStatus WHERE modName = @moduleName`);
 
-    if (result.affectedRows === 0) {
+    if (result.rowsAffected[0] === 0) {
       return res.status(404).json({ message: "Module not found" });
     }
 
-    res.json({
-      message: "Module inclusion status updated successfully",
-      moduleName,
-      packageName,
-      newStatus,
-    });
+    res.json({ message: "Module inclusion status updated successfully", moduleName, packageName, newStatus });
   } catch (error) {
     console.error("❌ Error updating module package status:", error);
     res.status(500).json({ message: "Server error while updating module status" });
   }
 };
-
