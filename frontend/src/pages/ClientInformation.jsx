@@ -36,21 +36,38 @@ const ClientInformation = () => {
   }
   const [, setPackages] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
-  const [clientName, setClientName] = useState("");
-  const [industry, setIndustry] = useState("");
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
-  const [showModuleQuestion, setShowModuleQuestion] = useState(true); 
-  const [modulesAreDifferent, setModulesAreDifferent] = useState(false);
-  const [moduleAssignments, setModuleAssignments] = useState({});
-  const [whiteCollar, setWhiteCollar] = useState(0);
-  const [blueCollar, setBlueCollar] = useState(0);
-  const [contract, setContract] = useState(0);
-  const [addPayroll, setAddPayroll] = useState(false);
-  const [companyName, setCompanyName] = useState("");
-  const [discountCode, setDiscountCode] = useState("");
+ const savedDraft =
+  JSON.parse(localStorage.getItem("clientInformationDraft")) || {};
+
+const skipModuleQuestionOnce =
+  localStorage.getItem("skipModuleQuestionOnce") === "true";
+
+const [showModuleQuestion, setShowModuleQuestion] = useState(
+  !skipModuleQuestionOnce
+);
+
+const [modulesAreDifferent, setModulesAreDifferent] = useState(
+  savedDraft.modulesAreDifferent ?? false
+);
+
+const [moduleAssignments, setModuleAssignments] = useState(
+  savedDraft.moduleAssignments || {}
+);
+
+const [clientName, setClientName] = useState(savedDraft.clientName || "");
+const [industry, setIndustry] = useState(savedDraft.industry || "");
+const [whiteCollar, setWhiteCollar] = useState(savedDraft.whiteCollar || 0);
+const [blueCollar, setBlueCollar] = useState(savedDraft.blueCollar || 0);
+const [contract, setContract] = useState(savedDraft.contract || 0);
+const [addPayroll, setAddPayroll] = useState(savedDraft.addPayroll || false);
+const [companyName, setCompanyName] = useState(savedDraft.companyName || "");
+const [discountCode, setDiscountCode] = useState(savedDraft.discountCode || "");
+const [billingFrequency, setBillingFrequency] = useState(
+  savedDraft.billingFrequency || "Monthly"
+);
   const [discountDetails, setDiscountDetails] = useState(null);
-  const [billingFrequency, setBillingFrequency] = useState("Monthly");
   const getBillingFrequencyDiscount = () => {
   if (billingFrequency === "Monthly") return 4;
   if (billingFrequency === "Quarterly") return 3;
@@ -73,27 +90,24 @@ const ClientInformation = () => {
     firstYearTotal: 0,
     implementationFee: 0,
   });
-  const [employeeMasterReady, setEmployeeMasterReady] = useState(false);
-  const [policiesReady, setPoliciesReady] = useState(false);
-  useEffect(() => {
-  setPriceDetails((prev) => {
-    const newImplementationFee = applyAdditionalImplementationDiscount(
-      discountedImplementationFee > 0
-        ? discountedImplementationFee
-        : prev.implementationFee
-    );
-    if (prev.implementationFee === newImplementationFee) return prev;
-    return {
-      ...prev,
-      implementationFee: newImplementationFee,
-    };
-  });
-}, [employeeMasterReady, policiesReady, discountedImplementationFee]);
+  const [readinessDiscount, setReadinessDiscount] = useState(
+  Number(localStorage.getItem("implementationReadinessDiscount")) || 0
+);
+const [readinessScore, setReadinessScore] = useState(
+  Number(localStorage.getItem("implementationReadinessScore")) || 0
+);
+useEffect(() => {
+  const savedDiscount =
+    Number(localStorage.getItem("implementationReadinessDiscount")) || 0;
+  const savedScore =
+    Number(localStorage.getItem("implementationReadinessScore")) || 0;
+
+  setReadinessDiscount(savedDiscount);
+  setReadinessScore(savedScore);
+}, []);
 const applyAdditionalImplementationDiscount = (fee) => {
-  if (employeeMasterReady && policiesReady) {
-    return +(fee * 0.95).toFixed(2); // reduce 5%
-  }
-  return fee;
+  if (!fee) return 0;
+  return +(fee * (1 - readinessDiscount / 100)).toFixed(2);
 };
 const [modules, setModules] = useState([]);
 const [modulesToAssign, setModulesToAssign] = useState([]);
@@ -224,6 +238,13 @@ useEffect(() => {
     rate: dynamicRate,
   }));
 }, [modules, selectedPackage, regionInfo.currency]);
+
+useEffect(() => {
+  if (localStorage.getItem("skipModuleQuestionOnce") === "true") {
+    localStorage.removeItem("skipModuleQuestionOnce");
+  }
+}, []);
+
 useEffect(() => {
   const fetchPackages = async () => {
     try {
@@ -295,8 +316,16 @@ useEffect(() => {
     const payrollFee = addPayroll ? regionInfo.name.toLowerCase().includes("middle east") || regionInfo.name.toLowerCase().includes("africa") || regionInfo.name.toLowerCase().includes("south east asia") ? 165.06 : 25000 : 0;
     const totalMonthly = monthlyPlatform + payrollFee;
     const firstYearTotal = totalMonthly * 12;
-    let newImplementationFee = prev.userEditedFee ? prev.implementationFee : discountedImplementationFee > 0 ? discountedImplementationFee : monthlyPlatform * 3;
-    newImplementationFee = applyAdditionalImplementationDiscount(newImplementationFee);
+    let baseImplementationFee = prev.userEditedFee
+  ? prev.implementationFee
+  : monthlyPlatform * 3;
+
+// apply discount code only if discount is for implementation fee
+if (discountedImplementationFee > 0 && !prev.userEditedFee) {
+  baseImplementationFee = discountedImplementationFee;
+}
+
+let newImplementationFee = applyAdditionalImplementationDiscount(baseImplementationFee);
     if (
       prev.rate === (discountedRate || originalRate) &&
       prev.effectiveEmployees === effectiveEmployees &&
@@ -327,8 +356,40 @@ useEffect(() => {
   originalRate,
   originalImplementationFee,
   regionInfo.name,
-  billingFrequency
+  billingFrequency,
+  readinessDiscount
 ]);
+useEffect(() => {
+  localStorage.setItem(
+    "clientInformationDraft",
+    JSON.stringify({
+      clientName,
+      industry,
+      whiteCollar,
+      blueCollar,
+      contract,
+      addPayroll,
+      companyName,
+      discountCode,
+      billingFrequency,
+      modulesAreDifferent,
+      moduleAssignments,
+    })
+  );
+}, [
+  clientName,
+  industry,
+  whiteCollar,
+  blueCollar,
+  contract,
+  addPayroll,
+  companyName,
+  discountCode,
+  billingFrequency,
+  modulesAreDifferent,
+  moduleAssignments,
+]);
+
 const handleSaveModules = () => {
   if (!modulesAreDifferent) return;
   let newRate = 0;
@@ -422,6 +483,7 @@ const handleContinue = async () => {
 const baseRate = originalRate || priceDetails.rate;
 const billingDiscount = getBillingFrequencyDiscount();
 const discountPercent = discountDetails?.discPercentage || 0;
+const readinessDiscountPercent = readinessDiscount || 0;
 
 const discountBreakdown = [
   {
@@ -434,6 +496,13 @@ const discountBreakdown = [
     amount: -((baseRate * billingDiscount) / 100),
   },
 ];
+if (readinessDiscountPercent > 0) {
+  discountBreakdown.push({
+    label: "Implementation Readiness Discount",
+    percent: readinessDiscountPercent,
+    amount: "Applied on One-Time Implementation Fee",
+  });
+}
 
 // 👉 Add discount code breakdown ONLY if applied
 if (discountPercent > 0) {
@@ -444,15 +513,17 @@ if (discountPercent > 0) {
   });
 }
     localStorage.setItem(
-      "clientInfo",
-      JSON.stringify({
-  ...payload,
-  priceDetails: {
-    ...priceDetails,
-    discountBreakdown, // 🔥 ADD THIS
-  },
-})
-    );
+  "clientInfo",
+  JSON.stringify({
+    ...payload,
+    readinessScore,
+    readinessDiscount,
+    priceDetails: {
+      ...priceDetails,
+      discountBreakdown,
+    },
+  })
+);
     localStorage.setItem(
       "moduleAssignments",
       JSON.stringify(moduleAssignments)
@@ -464,6 +535,7 @@ if (discountPercent > 0) {
       payload
     );
     console.log("Client Info Saved:", res.data);
+    localStorage.removeItem("clientInformationDraft");
     navigate("/contact-information");
   } catch (error) {
     console.error("Error saving client info:", error);
@@ -619,6 +691,8 @@ return (
 )}
           </div>
         </div>
+
+        
         {/* Module Assignment UI */}
         {modulesAreDifferent && modules?.length > 0 && (
           <div className="bg-white shadow-md rounded-2xl p-6 border border-gray-200 mt-6">
@@ -705,6 +779,57 @@ return (
               </div>
             </div>
           )}
+
+          {/* Implementation Readiness */}
+<div className="bg-white shadow-md rounded-2xl p-6 border border-gray-300 mb-4">
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <h2 className="text-lg font-bold text-blue-900">
+        ZingHR Implementation Readiness
+      </h2>
+      <p className="text-sm text-gray-600 mt-1">
+        Complete the readiness checklist to unlock implementation discount.
+      </p>
+
+      {(readinessScore > 0 || readinessDiscount > 0) && (
+        <div className="mt-3 flex flex-wrap gap-3">
+          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+            Readiness Score: {readinessScore}%
+          </span>
+          <span className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium">
+            Discount: {readinessDiscount}%
+          </span>
+        </div>
+      )}
+    </div>
+
+    <button
+      type="button"
+      onClick={() => {
+  localStorage.setItem(
+    "clientInformationDraft",
+    JSON.stringify({
+      clientName,
+      industry,
+      whiteCollar,
+      blueCollar,
+      contract,
+      addPayroll,
+      companyName,
+      discountCode,
+      billingFrequency,
+      modulesAreDifferent,
+      moduleAssignments,
+    })
+  );
+  navigate("/implementation-readiness");
+}}
+      className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold shadow-sm"
+    >
+      Open Checklist
+    </button>
+  </div>
+</div>
           {/* Add Payroll */}
           <div className="bg-white shadow-md rounded-2xl p-6 border border-gray-200 flex items-center justify-between">
             <div>
@@ -818,41 +943,21 @@ return (
                 <span className="font-medium">Monthly Platform</span>
                 <span className="font-semibold">
                   {currencySymbol}
-                  {modulesAreDifferent ? calculateMonthlyPlatform().toLocaleString() : ((discountedRate || priceDetails.rate) * priceDetails.effectiveEmployees).toLocaleString()}
+{Number(priceDetails.monthlyPlatform || 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="font-medium">Total Monthly</span>
                 <span className="font-bold text-lg text white">
                   {currencySymbol}
-                  {(
-                    (modulesAreDifferent ? calculateMonthlyPlatform() : (discountedRate || priceDetails.rate) * priceDetails.effectiveEmployees) +
-                    (addPayroll
-                      ? regionInfo.name.toLowerCase().includes("middle east") ||
-                      regionInfo.name.toLowerCase().includes("africa") ||
-                      regionInfo.name.toLowerCase().includes("south east asia")
-                      ? 165.06
-                      : 25000
-                      : 0
-                    )
-                  ).toLocaleString()}
+{Number(priceDetails.totalMonthly || 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between py-3 text-yellow-400 font-bold text-lg">
               <span>First Year Total</span>
               <span className="font-bold text-lg text-white-700">
                 {currencySymbol}
-                {(
-                  ((modulesAreDifferent ? calculateMonthlyPlatform() : (discountedRate || priceDetails.rate) * priceDetails.effectiveEmployees) +
-                  (addPayroll
-                    ? regionInfo.name.toLowerCase().includes("middle east") ||
-                    regionInfo.name.toLowerCase().includes("africa") ||
-                    regionInfo.name.toLowerCase().includes("south east asia")
-                    ? 165.06
-                    : 25000
-                    : 0
-                  )) * 12
-                ).toLocaleString()}
+{Number(priceDetails.firstYearTotal || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center py-2 border-t border-blue-300 mt-2 pt-2">
@@ -863,7 +968,7 @@ return (
                 <span>{currencySymbol}</span>
                 <input
                   type="number"
-                  value={discountedImplementationFee || priceDetails.implementationFee}
+                  value={priceDetails.implementationFee}
                   onChange={(e) =>
                     setPriceDetails((prev) => ({
                       ...prev,
@@ -877,27 +982,7 @@ return (
             </div>
           </div>
         </div>
-        {/* Employee Master & Policies Ready */}
-        <div className="bg-white shadow-md rounded-2xl p-6 border border-gray-300 flex flex-col md:flex-row items-center gap-4 mb-4">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={employeeMasterReady}
-              onChange={(e) => setEmployeeMasterReady(e.target.checked)}
-              className="w-4 h-4"
-            />
-            Is the Employee Master data prepared and up-to-date?
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={policiesReady}
-              onChange={(e) => setPoliciesReady(e.target.checked)}
-              className="w-4 h-4"
-            />
-            Have all relevant policies been finalized and approved?
-          </label>
-        </div>
+        
         {/* Discount Code */}
         <div className="bg-white shadow-md rounded-2xl p-6 border border-gray-300 flex items-center gap-4">
           <div className="flex-grow">
@@ -981,23 +1066,46 @@ return (
         </p>
         <div className="flex justify-center gap-6">
           <button
-            onClick={() => {
-              setModulesAreDifferent(true);
-              setShowModuleQuestion(false);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => {
-              setModulesAreDifferent(false);
-              setShowModuleQuestion(false);
-            }}
-            className="px-4 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition"
-          >
-            No
-          </button>
+  onClick={() => {
+    setModulesAreDifferent(true);
+    setShowModuleQuestion(false);
+
+    const existingDraft =
+      JSON.parse(localStorage.getItem("clientInformationDraft")) || {};
+
+    localStorage.setItem(
+      "clientInformationDraft",
+      JSON.stringify({
+        ...existingDraft,
+        modulesAreDifferent: true,
+      })
+    );
+  }}
+  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+>
+  Yes
+</button>
+
+<button
+  onClick={() => {
+    setModulesAreDifferent(false);
+    setShowModuleQuestion(false);
+
+    const existingDraft =
+      JSON.parse(localStorage.getItem("clientInformationDraft")) || {};
+
+    localStorage.setItem(
+      "clientInformationDraft",
+      JSON.stringify({
+        ...existingDraft,
+        modulesAreDifferent: false,
+      })
+    );
+  }}
+  className="px-4 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition"
+>
+  No
+</button>
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ import ProposalPage from "./pages/ProposalPage";
 import MyProposals from "./pages/MyProposals";
 import AdminProposals from "./pages/AdminProposals";
 import ExploreModules from "./pages/ExploreModules";
+import ImplementationReadiness from "./pages/ImplementationReadiness";
 
 function App() {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -51,6 +52,7 @@ function App() {
 <Route path="/my-proposals" element={<MyProposals />} />
 <Route path="/admin/all-proposals" element={<AdminProposals />} />
 <Route path="/explore-modules" element={<ExploreModules />} />
+<Route path="/implementation-readiness" element={<ImplementationReadiness />} />
         {/* ✅ Create Proposal (Customer Only) */}
         <Route
           path="/create-proposal"

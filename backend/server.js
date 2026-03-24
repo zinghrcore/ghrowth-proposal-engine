@@ -14,6 +14,7 @@ const approvalRoutes = require('./routes/approvalRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const regionRoutes = require('./routes/regionRoutes');
 const discountRoutes = require("./routes/discountRoutes");
+const readinessRoutes = require("./routes/readinessRoutes");
 
 const app = express();
 
@@ -36,7 +37,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/regions', regionRoutes);
 app.use("/api/modules", require("./routes/moduleRoutes"));
 app.use("/api/discounts", discountRoutes);
-
+app.use("/api/readiness", readinessRoutes);
 // --- Root route for testing ---
 app.get('/', (req, res) => {
   res.send('Server is running 🚀');

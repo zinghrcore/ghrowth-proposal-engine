@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { getFilesForClient } from "../utils/fileStorage";
 
 const MyProposals = () => {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -9,6 +10,8 @@ const MyProposals = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [implementationUploads, setImplementationUploads] = useState({});
+  const [filesByClient, setFilesByClient] = useState({});
 
   useEffect(() => {
     if (!user?.custId) return; // wait until user is loaded
@@ -28,7 +31,26 @@ const MyProposals = () => {
 
     fetchProposals();
   }, [user?.custId]);
+useEffect(() => {
+  const savedUploads =
+    JSON.parse(localStorage.getItem("implementationUploads")) || {};
+  setImplementationUploads(savedUploads);
+}, []);
+useEffect(() => {
+  const loadFiles = async () => {
+    const result = {};
 
+    for (const p of proposals) {
+      if (p.clientName) {
+        result[p.clientName] = await getFilesForClient(p.clientName);
+      }
+    }
+
+    setFilesByClient(result);
+  };
+
+  if (proposals.length > 0) loadFiles();
+}, [proposals]);
   // Apply both status filter and search filter
   const filteredProposals = proposals.filter((p) => {
   // Status filter
@@ -112,55 +134,89 @@ const MyProposals = () => {
                     <th className="px-4 py-3 font-medium uppercase tracking-wider">
                       PDF
                     </th>
+                    <th className="px-4 py-3 font-medium uppercase tracking-wider">
+  Attachments
+</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredProposals.map((p, i) => (
-                    <tr
-                      key={`${p.proposalId}-${i}`}
-                      className={`hover:bg-blue-50 transition duration-200 ${
-                        i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
-                    >
-                      <td className="px-4 py-3 font-medium text-gray-700">{p.clientName}</td>
-                      <td className="px-4 py-3 text-gray-600">{p.companyName}</td>
-                      <td className="px-4 py-3 text-gray-600">{p.planName}</td>
-                      <td className="px-4 py-3 text-gray-600">{p.region}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-semibold shadow-sm ${
-                            p.status === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : p.status === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : p.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {p.status || "not_submitted"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 font-medium">
-                        {p.status === "rejected" ? p.remarks || "No comment provided" : "—"}
-                      </td>
-                      <td className="px-4 py-3 flex gap-2">
-                        {p.pdfUrl ? (
-                          <a
-                            href={`http://localhost:5000${p.pdfUrl}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 transition"
-                          >
-                            <i className="fas fa-eye"></i> View
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+  {filteredProposals.map((p, i) => {
+    const clientFiles = filesByClient[p.clientName] || [];
+
+    return (
+      <tr
+        key={`${p.proposalId}-${i}`}
+        className={`hover:bg-blue-50 transition duration-200 ${
+          i % 2 === 0 ? "bg-white" : "bg-gray-50"
+        }`}
+      >
+        <td className="px-4 py-3 font-medium text-gray-700">{p.clientName}</td>
+        <td className="px-4 py-3 text-gray-600">{p.companyName}</td>
+        <td className="px-4 py-3 text-gray-600">{p.planName}</td>
+        <td className="px-4 py-3 text-gray-600">{p.region}</td>
+
+        <td className="px-4 py-3">
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-semibold shadow-sm ${
+              p.status === "approved"
+                ? "bg-green-100 text-green-800"
+                : p.status === "rejected"
+                ? "bg-red-100 text-red-800"
+                : p.status === "pending"
+                ? "bg-yellow-100 text-yellow-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {p.status || "not_submitted"}
+          </span>
+        </td>
+
+        <td className="px-4 py-3 text-gray-600 font-medium">
+          {p.status === "rejected" ? p.remarks || "No comment provided" : "—"}
+        </td>
+
+        <td className="px-4 py-3 flex gap-2">
+          {p.pdfUrl ? (
+            <a
+              href={`http://localhost:5000${p.pdfUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 transition"
+            >
+              <i className="fas fa-eye"></i> View
+            </a>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
+        </td>
+
+        <td className="px-4 py-3">
+  {clientFiles.length > 0 ? (
+    <div className="flex flex-col gap-1">
+      {clientFiles.map((file) => {
+        const fileUrl = URL.createObjectURL(file.file);
+
+        return (
+          <a
+            key={file.id}
+            href={fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            View {file.name}
+          </a>
+        );
+      })}
+    </div>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
+      </tr>
+    );
+  })}
+</tbody>
               </table>
             </div>
           )}
