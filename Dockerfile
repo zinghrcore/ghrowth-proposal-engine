@@ -10,6 +10,7 @@ COPY backend ./backend
 # Install backend dependencies
 WORKDIR /app/backend
 RUN npm install
+RUN npm install mssql
 
 # Copy frontend files
 WORKDIR /app
