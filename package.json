@@ -4,6 +4,8 @@
     "jspdf": "^3.0.4",
     "mssql": "^12.2.0",
     "multer": "^2.0.2",
-    "react-signature-canvas": "^1.1.0-alpha.2"
+    "react-signature-canvas": "^1.1.0-alpha.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   }
 }

@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJSDoc = require('swagger-jsdoc');
 
 // Route imports
 const customerRoutes = require('./routes/customerRoutes');
@@ -22,6 +24,35 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// --- Swagger config ---
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'ZHR Proposal Engine API',
+      version: '1.0.0',
+      description: 'API documentation for ZHR Proposal Engine',
+    },
+    servers: [
+      {
+        url: 'http://localhost:5000',
+      },
+    ],
+  },
+  apis: ['./server.js', './routes/*.js'],
+};
+
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
+
+// Swagger UI route
+app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Optional: raw JSON
+app.get('/swagger.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // --- Serve static proposal PDFs ---
 app.use('/uploads/proposals', express.static(path.join(__dirname, 'uploads/proposals')));
 
@@ -30,14 +61,14 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/proposals', proposalRoutes);
-//app.use('/api/modules', moduleRoutes);
 app.use('/api/upload', uploadRouter);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/regions', regionRoutes);
-app.use("/api/modules", require("./routes/moduleRoutes"));
+app.use("/api/modules", moduleRoutes);
 app.use("/api/discounts", discountRoutes);
 app.use("/api/readiness", readinessRoutes);
+
 // --- Root route for testing ---
 app.get('/', (req, res) => {
   res.send('Server is running 🚀');
@@ -47,9 +78,7 @@ app.get('/', (req, res) => {
 app.get("/test-db", async (req, res) => {
   try {
     const db = require("./config/db");
-
     const result = await db.request().query("SELECT 1 AS test");
-
     res.json(result.recordset);
   } catch (error) {
     console.error("DB Test Error:", error);
