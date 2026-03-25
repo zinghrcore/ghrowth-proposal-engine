@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const ClientInformation = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -220,7 +222,7 @@ useEffect(() => {
 useEffect(() => {
   const fetchModules = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/modules"); // adjust endpoint if needed
+      const res = await axios.get(`${BASE_URL}/api/modules`); // adjust endpoint if needed
       setModules(res.data);
     } catch (error) {
       console.error("Failed to fetch modules:", error);
@@ -248,7 +250,7 @@ useEffect(() => {
 useEffect(() => {
   const fetchPackages = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/packages");
+      const res = await axios.get(`${BASE_URL}/api/packages`);
       setPackages(res.data);
       const pkg = res.data.find(
         (p) =>
@@ -420,9 +422,7 @@ const handleSaveModules = () => {
 const applyDiscount = async () => {
   if (!discountCode) return;
   try {
-    const res = await axios.get(
-      `http://localhost:5000/api/discounts/${discountCode}`
-    );
+    const res = await axios.get(`${BASE_URL}/api/discounts/${discountCode}`)
     const discount = res.data;
     setDiscountDetails(discount);
     setDiscountError("");
@@ -531,7 +531,7 @@ if (discountPercent > 0) {
     console.log("✅ Client info saved:", { ...payload, priceDetails });
     console.log("🚀 Payload being sent to backend:", payload);
     const res = await axios.post(
-      "http://localhost:5000/api/customers/saveClientInformation",
+      `${BASE_URL}/api/customers/saveClientInformation`,
       payload
     );
     console.log("Client Info Saved:", res.data);

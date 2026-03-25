@@ -5,6 +5,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user'));
   //const region = JSON.parse(localStorage.getItem("region"));
@@ -39,7 +41,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchPackages = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/packages');
+        const res = await axios.get(`${BASE_URL}/api/packages`);
         const packagesWithDesc = res.data.map(pkg => ({
           ...pkg,
           pkgDescList: pkg.pkgDesc ? pkg.pkgDesc.split(',').map(f => f.trim()) : []
@@ -52,10 +54,10 @@ const Dashboard = () => {
     };
     const fetchModulesAndSummary = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/modules');
+        const res = await axios.get(`${BASE_URL}/api/modules`);
         setModules(res.data);
         console.log("Modules fetched from backend:", res.data);
-        const summaryRes = await axios.get('http://localhost:5000/api/modules/summary');
+        const summaryRes = await axios.get(`${BASE_URL}/api/modules/summary`);
         setModuleSummary({
           pro: summaryRes.data.Pro || 0,
           proPlus: summaryRes.data.ProPlus || 0,
@@ -86,7 +88,7 @@ useEffect(() => {
 useEffect(() => {
   const fetchComparison = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/modules/feature-comparison");
+      const res = await axios.get(`${BASE_URL}/api/modules/feature-comparison`);
       setPackageNames(res.data.packages || []);
       setComparisonData(res.data.modules || []);
     } catch (err) {
@@ -99,7 +101,7 @@ useEffect(() => {
 useEffect(() => {
   const fetchDiscounts = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/discounts'); // Your API endpoint
+      const res = await axios.get(`${BASE_URL}/api/discounts`); // Your API endpoint
       setDiscounts(res.data);
     } catch (err) {
       console.error('Error fetching discounts:', err);
@@ -111,7 +113,7 @@ useEffect(() => {
 useEffect(() => {
   const fetchDiscountTypes = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/discounts/types/all");
+      const res = await axios.get(`${BASE_URL}/api/discounts/types/all`);
       console.log("Discount types API response:", res.data); // <-- check this
       setDiscountTypes(res.data.types || res.data || []); // <-- set correctly
     } catch (err) {
@@ -177,8 +179,8 @@ const handleRemoveFeature = (planIndex, featureIndex) => {
 
 const handleSaveChanges = async () => {
   try {
-    await axios.put('http://localhost:5000/api/packages', { packages: editPlans });
-    const res = await axios.get('http://localhost:5000/api/packages');
+    await axios.put(`${BASE_URL}/api/packages`, { packages: editPlans });
+    const res = await axios.get(`${BASE_URL}/api/packages`);
     setPlans(res.data);
     setIsModalOpen(false);
     showNotification('Plans updated successfully!');
@@ -202,7 +204,7 @@ const handleRemoveModule = async (id, isNew) => {
   } else {
     if (!window.confirm('Are you sure you want to delete this module?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/modules/${id}`);
+      await axios.delete(`${BASE_URL}/api/modules/${id}`);
       setEditModules(prev => prev.filter(mod => mod.modId !== id));
       setModules(prev => prev.filter(mod => mod.modId !== id));
       showNotification('Module deleted successfully!');
@@ -221,8 +223,8 @@ const handleSaveModules = async () => {
     }
   }
   try {
-    await axios.put('http://localhost:5000/api/modules/bulk', { modules: editModules });
-    const res = await axios.get('http://localhost:5000/api/modules');
+    await axios.put(`${BASE_URL}/api/modules/bulk`, { modules: editModules });
+    const res = await axios.get(`${BASE_URL}/api/modules`);
     setModules(res.data);
     setIsModuleModalOpen(false);
     showNotification('Modules saved successfully!');
@@ -254,7 +256,7 @@ const handleDiscountChange = (index, field, value) => {
 const handleDeleteDiscount = async (id) => {
   if (!window.confirm('Are you sure you want to delete this discount?')) return;
   try {
-    await axios.delete(`http://localhost:5000/api/discounts/${id}`);
+    await axios.delete(`${BASE_URL}/api/discounts/${id}`);
     setDiscounts(prev => prev.filter(d => d.discId !== id));
     showNotification('Discount deleted successfully!');
   } catch (err) {
@@ -265,8 +267,8 @@ const handleDeleteDiscount = async (id) => {
 
 const handleSaveDiscounts = async () => {
   try {
-    await axios.put('http://localhost:5000/api/discounts', { discounts: editDiscounts });
-    const res = await axios.get('http://localhost:5000/api/discounts');
+    await axios.put(`${BASE_URL}/api/discounts`, { discounts: editDiscounts });
+    const res = await axios.get(`${BASE_URL}/api/discounts`);
     setDiscounts(res.data);
     setIsDiscountModalOpen(false);
     showNotification('Discounts saved successfully!');
@@ -463,7 +465,7 @@ const comparisonDataGroupedByCategory = comparisonData
                               return [...updated]; 
                             });
                             try {
-                              await axios.put("http://localhost:5000/api/modules/update-status", {
+                              await axios.put(`${BASE_URL}/api/modules/update-status`, {
                                 moduleName: feature.feature,
                                 packageName: pkg.pkgName,
                                 status: included ? "excluded" : "included",

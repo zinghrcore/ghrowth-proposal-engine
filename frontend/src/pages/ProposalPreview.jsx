@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const ProposalPreview = () => {
   const [proposal, setProposal] = useState(null);
   const [searchParams] = useSearchParams();
@@ -8,7 +10,7 @@ const ProposalPreview = () => {
 
   useEffect(() => {
     if (proposalId) {
-      fetch(`http://localhost:5000/api/proposals/${proposalId}`)
+      fetch(`${BASE_URL}/api/proposals/${proposalId}`)
         .then((res) => res.json())
         .then((data) => setProposal(data))
         .catch((err) => console.error(err));

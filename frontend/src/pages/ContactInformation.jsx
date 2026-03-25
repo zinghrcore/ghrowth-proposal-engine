@@ -4,6 +4,8 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const ContactInformation = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -66,7 +68,7 @@ const ContactInformation = () => {
 
       // Save to backend
       const res = await axios.post(
-        "http://localhost:5000/api/customers/saveClientInformation",
+        `${BASE_URL}/api/customers/saveClientInformation`,
         payload
       );
 

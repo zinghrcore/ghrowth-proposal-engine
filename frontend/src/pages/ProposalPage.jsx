@@ -5,6 +5,8 @@ import Footer from "../components/Footer";
 import zinghrLogo from "../assets/Zing-Logo.png";
 import axios from "axios";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const ProposalPage = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -115,7 +117,7 @@ const contract =
   useEffect(() => {
     const fetchPackageFeatures = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/packages");
+        const res = await axios.get(`${BASE_URL}/api/packages`);
         const pkg = res.data.find(
           (p) =>
             p.name?.replace(/\s+/g, "").toLowerCase() ===
@@ -147,7 +149,7 @@ const contract =
  useEffect(() => {
   const fetchModulesByPlan = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/modules");
+      const res = await axios.get(`${BASE_URL}/api/modules`);
       console.log("📦 All modules:", res.data);
 
       const plan = selectedPlan.toLowerCase();
@@ -249,7 +251,7 @@ const handleDownloadPDF = async () => {
       formData.append("file", pdfBlob, filename);
       formData.append("proposalId", storedProposalId);
 
-      await axios.post("http://localhost:5000/api/upload", formData, {
+      await axios.post(`${BASE_URL}/api/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
     }
@@ -326,7 +328,7 @@ console.log("🚨 Routed to", selectedApprover?.name || "Salesperson", `(custId:
 
     // 1️⃣ Create proposal in backend
     const response = await axios.post(
-      "http://localhost:5000/api/approvals/create-proposal",
+      `${BASE_URL}/api/approvals/create-proposal`,
       {
         customerId,
         planName: selectedPlan,
@@ -357,7 +359,7 @@ const { pdfBlob, filename } = await generatePDF();
     formData.append("proposalId", newProposalId);
 
     const uploadRes = await axios.post(
-      "http://localhost:5000/api/upload",
+      `${BASE_URL}/api/upload`,
       formData,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -370,7 +372,7 @@ if (typeof customerId === "string" && customerId.startsWith("CUST-")) {
 }
 
     // 4️⃣ Send to pending approvals
-    await axios.post("http://localhost:5000/api/approvals/pending-approvals", {
+    await axios.post(`${BASE_URL}/api/approvals/pending-approvals`, {
   proposalId: newProposalId,
   customerId: newCustomerId,
   planName: selectedPlan,
@@ -418,7 +420,7 @@ useEffect(() => {
       }
 
       const res = await axios.get(
-        `http://localhost:5000/api/approvals/status/${storedProposalId}`
+        `${BASE_URL}/api/approvals/status/${storedProposalId}`
       );
 
       const backendStatus = res.data?.status?.toLowerCase() || "not_submitted";
@@ -446,7 +448,7 @@ useEffect(() => {
     const region = regionInfo.name || "India";
 
     try {
-      const res = await axios.get("http://localhost:5000/api/approvals/region", {
+      const res = await axios.get(`${BASE_URL}/api/approvals/region`, {
         params: {
           approverId: user.custId,
           region,
@@ -497,7 +499,7 @@ useEffect(() => {
                 </td>
                 <td className="p-3 text-center">
                   <a
-                    href={`http://localhost:5000${approval.pdfUrl}`}
+                    href={`${BASE_URL}${approval.pdfUrl}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 font-semibold hover:underline"

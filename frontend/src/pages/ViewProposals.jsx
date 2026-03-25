@@ -5,6 +5,8 @@ import Footer from "../components/Footer";
 import zinghrLogo from "../assets/Zing-Logo.png";
 import axios from "axios";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const ViewProposal = () => {
   const { proposalId } = useParams();
   const navigate = useNavigate();
@@ -18,7 +20,7 @@ const ViewProposal = () => {
   useEffect(() => {
     const fetchProposal = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/proposals/${proposalId}`);
+        const res = await axios.get(`${BASE_URL}/api/proposals/${proposalId}`);
         setProposalData(res.data);
       } catch (err) {
         console.error("Error fetching proposal:", err);
@@ -35,7 +37,7 @@ const ViewProposal = () => {
     if (!window.confirm("Are you sure you want to approve this proposal?")) return;
     try {
       setActionLoading(true);
-      await axios.put(`http://localhost:5000/api/approvals/approve/${proposalId}`);
+      await axios.put(`${BASE_URL}/api/approvals/approve/${proposalId}`);
       alert("✅ Proposal approved successfully!");
       navigate("/pending-approvals"); // redirect to list
     } catch (err) {
@@ -51,7 +53,7 @@ const ViewProposal = () => {
     if (!window.confirm("Are you sure you want to reject this proposal?")) return;
     try {
       setActionLoading(true);
-      await axios.put(`http://localhost:5000/api/approvals/reject/${proposalId}`);
+      await axios.put(`${BASE_URL}/api/approvals/reject/${proposalId}`);
       alert("❌ Proposal rejected successfully!");
       navigate("/pending-approvals");
     } catch (err) {
@@ -124,7 +126,7 @@ const ViewProposal = () => {
 
           {proposalData.pdfPath && (
             <a
-              href={`http://localhost:5000${proposalData.pdfPath}`}
+              href={`${BASE_URL}${proposalData.pdfPath}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"

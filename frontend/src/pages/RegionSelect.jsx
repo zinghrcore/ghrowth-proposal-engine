@@ -2,6 +2,8 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const RegionSelect = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -13,7 +15,7 @@ const [selectedRegion, setSelectedRegion] = React.useState(null);
 React.useEffect(() => {
   const fetchRegions = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/regions"); // fetch from DB
+      const res = await axios.get(`${BASE_URL}/api/regions`); // fetch from DB
       setRegions(res.data);      // live regions
       setEditRegions(res.data);  // copy for admin editing
     } catch (err) {
@@ -35,7 +37,7 @@ console.log("Regions:", regions);
 
       // Update region in backend
       if (user && user.id) {
-        await axios.put("http://localhost:5000/api/customer/region", {
+        await axios.put(`${BASE_URL}/api/customer/region`, {
           custId: user.id,
           region,
         });
@@ -97,7 +99,7 @@ console.log("Regions:", regions);
 
       console.log("Deleting region id:", regionToDelete.id); // debug line
 
-      await axios.delete(`http://localhost:5000/api/regions/${regionToDelete.id}`);
+      await axios.delete(`${BASE_URL}/api/regions/${regionToDelete.id}`);
 
       // Update state
       const updated = editRegions.filter((_, i) => i !== index);
@@ -135,7 +137,7 @@ console.log("Regions:", regions);
         <button
           onClick={async () => {
             try {
-              await axios.put("http://localhost:5000/api/regions", { regions: editRegions });
+              await axios.put(`${BASE_URL}/api/regions`, { regions: editRegions });
               setRegions([...editRegions]); // update main regions state
               setIsAdminModalOpen(false);
               alert("Regions updated successfully!");

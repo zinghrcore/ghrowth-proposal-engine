@@ -5,6 +5,8 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import axios from "axios";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const AdminReports = () => {
   const [user, setUser] = useState(null);
   const [proposals, setProposals] = useState([]);
@@ -21,7 +23,7 @@ const AdminReports = () => {
     const fetchProposals = async () => {
       try {
         const res = await axios.get(
-          "http://localhost:5000/api/reports/all-proposals"
+          `${BASE_URL}/api/reports/all-proposals`
         );
         setProposals(res.data);
       } catch (err) {
@@ -108,7 +110,7 @@ const AdminReports = () => {
 
                   {p.pdfPath ? (
                     <a
-                      href={`http://localhost:5000${p.pdfPath}`}
+                      href={`${BASE_URL}${p.pdfPath}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"

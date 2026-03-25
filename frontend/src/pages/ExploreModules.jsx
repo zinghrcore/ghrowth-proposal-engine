@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const ExploreModules = () => {
   const [modules, setModules] = useState([]);
   const region = JSON.parse(localStorage.getItem("region"));
@@ -13,7 +15,7 @@ const ExploreModules = () => {
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/modules");
+        const res = await axios.get(`${BASE_URL}/api/modules`);
         // add `isChecked` flag to each module
         const modulesWithSelection = res.data.map((m) => ({ ...m, isChecked: false }));
         setModules(modulesWithSelection);

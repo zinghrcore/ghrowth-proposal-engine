@@ -3,6 +3,8 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const AdminProposals = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const [proposals, setProposals] = useState([]);
@@ -12,7 +14,7 @@ const AdminProposals = () => {
     const fetchProposals = async () => {
       try {
         const res = await axios.get(
-          "http://localhost:5000/api/proposals/admin/all-proposals"
+          `${BASE_URL}/api/proposals/admin/all-proposals`
         );
         setProposals(res.data);
       } catch (err) {
@@ -101,7 +103,7 @@ const AdminProposals = () => {
                       <td className="px-4 py-3 flex gap-3">
                         {p.pdfUrl ? (
                           <a
-                            href={`http://localhost:5000${p.pdfUrl}`}
+                            href={`${BASE_URL}${p.pdfUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-white bg-blue-600 hover:bg-green-700 text-center px-4 py-2 rounded-lg transition font-medium"

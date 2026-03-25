@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const Register = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -57,7 +59,7 @@ const Register = () => {
     }
 
     try {
-      const res = await axios.post("http://localhost:5000/api/customers/register", formData);
+      const res = await axios.post(`${BASE_URL}/api/customers/register`, formData);
       showToast(res.data.message || "Registration successful!", "success");
 
       setFormData({

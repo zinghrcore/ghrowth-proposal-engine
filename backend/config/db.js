@@ -1,10 +1,10 @@
 const sql = require('mssql');
 
 const config = {
-  user: 'sa',                
-  password: 'Zing@123',  
-  server: 'localhost',       
-  database: 'ZHRProposalEngine',
+  user: 'Temp',                
+  password: 'Temp@123',  
+  server: '172.16.68.4',       
+  database: 'zhrproposalengine',
   options: {
     encrypt: false,
     trustServerCertificate: true

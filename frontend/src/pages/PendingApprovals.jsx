@@ -4,6 +4,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import axios from 'axios';
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const PendingApprovals = () => {
   const [user, setUser] = useState(null);
   const [pendingProposals, setPendingProposals] = useState([]);
@@ -17,7 +19,7 @@ const [rejectingProposalId, setRejectingProposalId] = useState(null);
   if (!custId) return;
   try {
     const res = await axios.get(
-      `http://localhost:5000/api/approvals/pending-approvals/${custId}`
+      `${BASE_URL}/api/approvals/pending-approvals/${custId}`
     );
     console.log("Fetched proposals:", res.data);
     setPendingProposals(res.data); // ✅ only this line
@@ -39,7 +41,7 @@ const [rejectingProposalId, setRejectingProposalId] = useState(null);
   // ✅ Approve Proposal
   const handleApprove = async (proposalId) => {
     try {
-      await axios.put(`http://localhost:5000/api/approvals/approve/${proposalId}`);
+      await axios.put(`${BASE_URL}/api/approvals/approve/${proposalId}`);
       alert('✅ Proposal approved successfully!');
       fetchPending(user.custId);
     } catch (err) {
@@ -57,7 +59,7 @@ const [rejectingProposalId, setRejectingProposalId] = useState(null);
   }
 
   try {
-    await axios.put(`http://localhost:5000/api/approvals/reject/${rejectingProposalId}`, {
+    await axios.put(`${BASE_URL}/api/approvals/reject/${rejectingProposalId}`, {
       comment: rejectComment.trim()
     });
     alert('❌ Proposal rejected successfully!');

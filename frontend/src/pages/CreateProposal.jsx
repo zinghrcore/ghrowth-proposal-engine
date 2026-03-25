@@ -9,6 +9,8 @@ import axios from "axios";
 import { BsCheckCircleFill } from "react-icons/bs";
 import { FaCalendarAlt, FaSignature, FaCogs } from "react-icons/fa";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const CreateProposal = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -81,7 +83,7 @@ const CreateProposal = () => {
     console.log("📨 Sending proposal data:", proposalData);
 
     const response = await axios.post(
-      "http://localhost:5000/api/proposals",
+      `${BASE_URL}/api/proposals`,
       proposalData
     );
 
@@ -138,7 +140,7 @@ const CreateProposal = () => {
   const sendPendingApproval = async (proposalId, planName, pdfFileName, approverId) => {
   if (!proposalId || !approverId) return console.error("❌ Missing proposal ID or approver ID!");
   try {
-    await axios.post("http://localhost:5000/api/approvals/pending-approvals", {
+    await axios.post(`${BASE_URL}/api/approvals/pending-approvals`, {
       proposalId,
       planName,
       pdfUrl: `/uploads/proposals/${pdfFileName}`, // matches DB column
@@ -196,7 +198,7 @@ const CreateProposal = () => {
     formDataUpload.append("proposalId", proposalId);
 
     // 6️⃣ Upload PDF to backend
-    await axios.post("http://localhost:5000/api/proposals/upload-pdf", formDataUpload, {
+    await axios.post(`${BASE_URL}/api/proposals/upload-pdf`, formDataUpload, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 

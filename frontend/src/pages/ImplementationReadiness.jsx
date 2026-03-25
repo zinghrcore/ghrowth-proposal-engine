@@ -5,6 +5,8 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { saveFilesForClient, getFilesForClient, deleteFileById } from "../utils/fileStorage";
 
+const BASE_URL = process.env.REACT_APP_API_URL;
+
 const ImplementationReadiness = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -35,8 +37,8 @@ useEffect(() => {
   const fetchChecklistData = async () => {
     try {
       const [sectionsRes, itemsRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/readiness/sections"),
-        axios.get("http://localhost:5000/api/readiness/items"),
+        axios.get(`${BASE_URL}/api/readiness/sections`),
+        axios.get(`${BASE_URL}/api/readiness/items`),
       ]);
 
       const sectionData = sectionsRes.data || [];
