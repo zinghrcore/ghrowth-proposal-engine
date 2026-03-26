@@ -1,31 +1,24 @@
-# Use Node base image
 FROM node:18
 
-# Create app directory
+# Root app folder
 WORKDIR /app
 
-# Copy backend files
-COPY backend ./backend
-
-# Install backend dependencies
+# -------- Backend --------
 WORKDIR /app/backend
+COPY backend/package*.json ./
 RUN npm install
-RUN npm install mssql
 
-# Copy frontend files
-WORKDIR /app
-COPY frontend ./frontend
+COPY backend ./
 
-# Install frontend dependencies
+# -------- Frontend --------
 WORKDIR /app/frontend
+COPY frontend/package*.json ./
 RUN npm install
+
+COPY frontend ./
 RUN npm run build
 
-# Go back to backend
+# -------- Start backend --------
 WORKDIR /app/backend
-
-# Expose backend port
 EXPOSE 5000
-
-# Start backend server
 CMD ["npm", "start"]
