@@ -70,15 +70,37 @@ app.use("/api/discounts", discountRoutes);
 app.use("/api/readiness", readinessRoutes);
 
 // --- Root route for testing ---
+/**
+ * @openapi
+ * /:
+ *   get:
+ *     summary: Check server status
+ *     responses:
+ *       200:
+ *         description: Server is running
+ */
 app.get('/', (req, res) => {
   res.send('Server is running 🚀');
 });
 
 // ✅ TEST DATABASE CONNECTION
+/**
+ * @openapi
+ * /test-db:
+ *   get:
+ *     summary: Test database connection
+ *     description: Checks whether the app can connect to SQL Server
+ *     responses:
+ *       200:
+ *         description: Database connection successful
+ *       500:
+ *         description: Database connection failed
+ */
 app.get("/test-db", async (req, res) => {
   try {
     const db = require("./config/db");
-    const result = await db.request().query("SELECT 1 AS test");
+    await db.poolConnect;
+const result = await db.pool.request().query('SELECT 1 AS test');
     res.json(result.recordset);
   } catch (error) {
     console.error("DB Test Error:", error);
