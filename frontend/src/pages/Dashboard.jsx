@@ -670,7 +670,7 @@ const comparisonDataGroupedByCategory = comparisonData
                     localStorage.setItem("selectedPlan", selectedPlan);
                     localStorage.setItem("selectedModules", JSON.stringify(selectedModules)); // save modules
                     localStorage.setItem("source", "dashboard");
-                    navigate("/client-info");
+                    window.location.href = "/client-info";
                   }
                 }}
                 className={`px-6 py-3 rounded-xl font-semibold transition ${

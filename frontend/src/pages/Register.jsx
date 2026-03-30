@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const BASE_URL = process.env.REACT_APP_API_URL;
+const PUBLIC_URL = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
 
 const Register = () => {
   const navigate = useNavigate();
@@ -110,7 +111,7 @@ const Register = () => {
         </p>
 
         <img
-          src="/assets/Zing-Logo.png"
+          src={`${PUBLIC_URL}/assets/Zing-Logo.png`}
           alt="HR Management"
           className="w-64 md:w-80 rounded-xl shadow-2xl border border-white/20"
         />

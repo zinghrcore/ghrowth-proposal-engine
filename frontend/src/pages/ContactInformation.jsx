@@ -15,7 +15,7 @@ const ContactInformation = () => {
     const info = JSON.parse(localStorage.getItem("clientInfo")) || null;
     if (!info || !info.custName) {
       alert("Please fill in client information first.");
-      navigate("/client-information");
+      navigate("/client-info");
     } else {
       setClientInfo(info);
     }
