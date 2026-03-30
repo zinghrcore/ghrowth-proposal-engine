@@ -133,7 +133,7 @@ const Login = () => {
           <p className="mt-6 text-center text-gray-500">
             Don’t have an account?{" "}
             <span
-              onClick={() => navigate("/register")}
+              //onClick={() => navigate("/register")}
               className="text-purple-600 font-medium cursor-pointer hover:underline hover:text-blue-700 transition"
             >
               Register here
