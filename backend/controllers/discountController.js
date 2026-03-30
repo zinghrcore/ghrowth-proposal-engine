@@ -1,8 +1,8 @@
-import { pool, poolConnect } from "../config/db.js";
+const { pool, poolConnect } = require("../config/db");
 
 
 // Get all discounts
-export const getAllDiscounts = async (req, res) => {
+const getAllDiscounts = async (req, res) => {
   try {
 
     await poolConnect;
@@ -23,7 +23,7 @@ export const getAllDiscounts = async (req, res) => {
 
 
 // Get discount by code
-export const getDiscountByCode = async (req, res) => {
+const getDiscountByCode = async (req, res) => {
 
   const { code } = req.params;
 
@@ -65,7 +65,7 @@ export const getDiscountByCode = async (req, res) => {
 
 
 // Create discount
-export const createDiscount = async (req, res) => {
+const createDiscount = async (req, res) => {
 
   const { discCode, discDesc, discPercentage, discType, validFromMonth, validToMonth } = req.body;
 
@@ -112,7 +112,7 @@ export const createDiscount = async (req, res) => {
 
 
 // Update discount
-export const updateDiscount = async (req, res) => {
+const updateDiscount = async (req, res) => {
 
   const { id } = req.params;
   const { discCode, discDesc, discPercentage, discType, validFromMonth, validToMonth } = req.body;
@@ -162,7 +162,7 @@ export const updateDiscount = async (req, res) => {
 
 
 // Delete discount
-export const deleteDiscount = async (req, res) => {
+const deleteDiscount = async (req, res) => {
 
   const { id } = req.params;
 
@@ -191,7 +191,7 @@ export const deleteDiscount = async (req, res) => {
 
 
 // Bulk update discounts
-export const updateDiscountsBulk = async (req, res) => {
+const updateDiscountsBulk = async (req, res) => {
 
   try {
 
@@ -261,7 +261,7 @@ export const updateDiscountsBulk = async (req, res) => {
 
 
 // Get discount types
-export const getDiscountTypes = async (req, res) => {
+const getDiscountTypes = async (req, res) => {
 
   try {
 
@@ -290,4 +290,14 @@ export const getDiscountTypes = async (req, res) => {
 
   }
 
+};
+
+module.exports = {
+  getAllDiscounts,
+  getDiscountByCode,
+  createDiscount,
+  updateDiscount,
+  deleteDiscount,
+  updateDiscountsBulk,
+  getDiscountTypes,
 };

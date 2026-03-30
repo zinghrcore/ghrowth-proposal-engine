@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJSDoc = require('swagger-jsdoc');
 
@@ -69,20 +70,6 @@ app.use("/api/modules", moduleRoutes);
 app.use("/api/discounts", discountRoutes);
 app.use("/api/readiness", readinessRoutes);
 
-// --- Root route for testing ---
-/**
- * @openapi
- * /:
- *   get:
- *     summary: Check server status
- *     responses:
- *       200:
- *         description: Server is running
- */
-app.get('/', (req, res) => {
-  res.send('Server is running 🚀');
-});
-
 // ✅ TEST DATABASE CONNECTION
 /**
  * @openapi
@@ -107,6 +94,29 @@ const result = await db.pool.request().query('SELECT 1 AS test');
     res.status(500).json({ message: "Database connection failed" });
   }
 });
+
+// --- Serve React production build (Docker / same-origin deploy) ---
+const frontendBuild = path.join(__dirname, '../frontend/build');
+if (fs.existsSync(frontendBuild)) {
+  app.use(express.static(frontendBuild));
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(frontendBuild, 'index.html'));
+  });
+} else {
+  /**
+   * @openapi
+   * /:
+   *   get:
+   *     summary: Check server status
+   *     responses:
+   *       200:
+   *         description: Server is running
+   */
+  app.get('/', (req, res) => {
+    res.send('Server is running 🚀 (no frontend build — run `npm run build` in frontend)');
+  });
+}
 
 // --- Start server ---
 const PORT = process.env.PORT || 5000;

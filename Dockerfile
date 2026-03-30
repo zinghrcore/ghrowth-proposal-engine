@@ -16,7 +16,12 @@ RUN npm install
 WORKDIR /app
 COPY frontend ./frontend
 
-# Install frontend dependencies
+# Install frontend dependencies and build (CRA bakes REACT_APP_API_URL at build time)
+# Example: docker build --build-arg REACT_APP_API_URL=https://api.yourdomain.com .
+# Same host as UI: use empty string so axios calls /api/... on the same origin
+ARG REACT_APP_API_URL=
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+
 WORKDIR /app/frontend
 RUN npm install
 RUN npm run build
