@@ -11,10 +11,12 @@ RUN npm install
 COPY backend ./
 
 # Install frontend dependencies and build (CRA bakes REACT_APP_API_URL at build time)
-# Example: docker build --build-arg REACT_APP_API_URL=https://api.yourdomain.com .
-# Same host as UI: use empty string so axios calls /api/... on the same origin
-ARG REACT_APP_API_URL=
+# For sub-path hosting under /zhrproposalengine, default API base is /zhrproposalengine
+ARG REACT_APP_API_URL=/zhrproposalengine
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+# PUBLIC_URL controls CRA asset paths (static/js, static/css)
+ARG PUBLIC_URL=/zhrproposalengine
+ENV PUBLIC_URL=${PUBLIC_URL}
 
 WORKDIR /app/frontend
 COPY frontend/package*.json ./

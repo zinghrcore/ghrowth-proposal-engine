@@ -70,6 +70,19 @@ app.use("/api/modules", moduleRoutes);
 app.use("/api/discounts", discountRoutes);
 app.use("/api/readiness", readinessRoutes);
 
+// Same APIs exposed under sub-path prefix for ingress setups that do not rewrite.
+app.use('/zhrproposalengine/api/customers', customerRoutes);
+app.use('/zhrproposalengine/api/auth', authRoutes);
+app.use('/zhrproposalengine/api/packages', packageRoutes);
+app.use('/zhrproposalengine/api/proposals', proposalRoutes);
+app.use('/zhrproposalengine/api/upload', uploadRouter);
+app.use('/zhrproposalengine/api/approvals', approvalRoutes);
+app.use('/zhrproposalengine/api/reports', reportRoutes);
+app.use('/zhrproposalengine/api/regions', regionRoutes);
+app.use('/zhrproposalengine/api/modules', moduleRoutes);
+app.use('/zhrproposalengine/api/discounts', discountRoutes);
+app.use('/zhrproposalengine/api/readiness', readinessRoutes);
+
 // ✅ TEST DATABASE CONNECTION
 /**
  * @openapi
@@ -97,11 +110,27 @@ const result = await db.pool.request().query('SELECT 1 AS test');
 
 // --- Serve React production build (Docker / same-origin deploy) ---
 const frontendBuild = path.join(__dirname, '../frontend/build');
+const APP_BASE_PATH = '/zhrproposalengine';
 if (fs.existsSync(frontendBuild)) {
+  // Serve static files both at root and at sub-path.
   app.use(express.static(frontendBuild));
+  app.use(APP_BASE_PATH, express.static(frontendBuild));
+
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(frontendBuild, 'index.html'));
+    // Let API and static asset routes pass through.
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/swagger')) {
+      return next();
+    }
+    if (req.path.startsWith(`${APP_BASE_PATH}/api`) || req.path.startsWith(`${APP_BASE_PATH}/uploads`) || req.path.startsWith(`${APP_BASE_PATH}/swagger`)) {
+      return next();
+    }
+
+    // SPA fallback for root and sub-path routing.
+    if (req.path === '/' || req.path.startsWith(APP_BASE_PATH)) {
+      return res.sendFile(path.join(frontendBuild, 'index.html'));
+    }
+
+    return next();
   });
 } else {
   /**

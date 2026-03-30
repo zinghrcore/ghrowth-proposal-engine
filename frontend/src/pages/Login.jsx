@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react"; // 👁️ import icons
 
 const BASE_URL = process.env.REACT_APP_API_URL;
+const PUBLIC_URL = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
 
 const Login = () => {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ const Login = () => {
           Simplify your HR journey and empower your workforce effortlessly.
         </p>
         <img
-          src="/assets/Zing-Logo.png"
+          src={`${PUBLIC_URL}/assets/Zing-Logo.png`}
           alt="ZingHR Login"
           className="w-full max-w-xs rounded-xl shadow-2xl border border-white/20"
         />
