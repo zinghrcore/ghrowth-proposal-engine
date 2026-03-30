@@ -7,6 +7,10 @@ WORKDIR /app
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm install
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2290ac4263dd23bedba8c3344490cce1886be311
 
 COPY backend ./
 
