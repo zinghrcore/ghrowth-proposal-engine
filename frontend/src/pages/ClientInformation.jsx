@@ -22,10 +22,6 @@ const ClientInformation = () => {
   const isExploreModules = source === "exploreModules";
   const currencySymbol = regionInfo.currency === "USD" ? "$" : "₹";
   const INR_TO_USD_RATE = 1.94 / 175;
-  const formatCurrency = (value) => {
-  if (!value && value !== 0) return "";
-  return Number(value).toLocaleString("en-IN");
-};
   const planMinEmployees = {
     pro: 1000,
     proplus: 600,
@@ -324,7 +320,7 @@ useEffect(() => {
     const firstYearTotal = totalMonthly * 12;
     let baseImplementationFee = prev.userEditedFee
   ? prev.implementationFee
-  : monthlyPlatform * 3;
+  : totalMonthly * 3;
 
 // apply discount code only if discount is for implementation fee
 if (discountedImplementationFee > 0 && !prev.userEditedFee) {
@@ -971,20 +967,38 @@ return (
               <div className="flex items-center gap-2">
                 <span>{currencySymbol}</span>
                 <input
-                  type="number"
-                  value={formatCurrency(priceDetails.implementationFee)}
-                  onChange={(e) => {
-  const rawValue = e.target.value.replace(/,/g, "");
-  if (rawValue === "" || /^[0-9]*\.?[0-9]*$/.test(rawValue)) {
+  type="text"
+  value={
+    priceDetails.implementationFee !== "" &&
+    priceDetails.implementationFee !== null &&
+    priceDetails.implementationFee !== undefined
+      ? Number(String(priceDetails.implementationFee).replace(/,/g, "")).toLocaleString("en-IN")
+      : ""
+  }
+  onChange={(e) => {
+    const rawValue = e.target.value.replace(/,/g, "");
+    if (rawValue === "" || /^[0-9]*\.?[0-9]*$/.test(rawValue)) {
+      setPriceDetails((prev) => ({
+        ...prev,
+        implementationFee: rawValue,
+        userEditedFee: true,
+      }));
+    }
+  }}
+  onBlur={(e) => {
+    const rawValue = e.target.value.replace(/,/g, "");
+    const val = parseFloat(rawValue);
+
     setPriceDetails((prev) => ({
       ...prev,
-      implementationFee: rawValue,
-      userEditedFee: true,
+      implementationFee:
+        rawValue.trim() === "" || isNaN(val)
+          ? Number((prev.totalMonthly || 0) * 3).toFixed(2)
+          : val,
     }));
-  }
-}}
-                  className="w-32 text-right text-blue-900 font-semibold border border-yellow-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-yellow-400 outline-none"
-                />
+  }}
+  className="w-32 text-right text-blue-900 font-semibold border border-yellow-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-yellow-400 outline-none"
+/>
               </div>
             </div>
           </div>
