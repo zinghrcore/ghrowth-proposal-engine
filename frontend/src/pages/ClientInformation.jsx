@@ -22,6 +22,10 @@ const ClientInformation = () => {
   const isExploreModules = source === "exploreModules";
   const currencySymbol = regionInfo.currency === "USD" ? "$" : "₹";
   const INR_TO_USD_RATE = 1.94 / 175;
+  const formatCurrency = (value) => {
+  if (!value && value !== 0) return "";
+  return Number(value).toLocaleString("en-IN");
+};
   const planMinEmployees = {
     pro: 1000,
     proplus: 600,
@@ -71,12 +75,12 @@ const [billingFrequency, setBillingFrequency] = useState(
 );
   const [discountDetails, setDiscountDetails] = useState(null);
   const getBillingFrequencyDiscount = () => {
-  if (billingFrequency === "Monthly") return 4;
+  if (billingFrequency === "Monthly") return 0;
   if (billingFrequency === "Quarterly") return 3;
-  if (billingFrequency === "Half-Yearly") return 2;
-  if (billingFrequency === "Annual") return 1;
+  if (billingFrequency === "Half-Yearly") return 4;
+  if (billingFrequency === "Annual") return 5;
   return 0;
-  };
+};
   const [discountError, setDiscountError] = useState("");
   const [discountedRate, setDiscountedRate] = useState(0);
   const [discountedImplementationFee, setDiscountedImplementationFee] = useState(0);
@@ -968,14 +972,17 @@ return (
                 <span>{currencySymbol}</span>
                 <input
                   type="number"
-                  value={priceDetails.implementationFee}
-                  onChange={(e) =>
-                    setPriceDetails((prev) => ({
-                      ...prev,
-                      implementationFee: parseFloat(e.target.value) || 0,
-                      userEditedFee: true,
-                    }))
-                  }
+                  value={formatCurrency(priceDetails.implementationFee)}
+                  onChange={(e) => {
+  const rawValue = e.target.value.replace(/,/g, "");
+  if (rawValue === "" || /^[0-9]*\.?[0-9]*$/.test(rawValue)) {
+    setPriceDetails((prev) => ({
+      ...prev,
+      implementationFee: rawValue,
+      userEditedFee: true,
+    }));
+  }
+}}
                   className="w-32 text-right text-blue-900 font-semibold border border-yellow-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-yellow-400 outline-none"
                 />
               </div>
