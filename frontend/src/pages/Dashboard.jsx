@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import PageBreadcrumb from '../components/PageBreadcrumb';
 
 const BASE_URL = process.env.REACT_APP_API_URL;
 
@@ -34,10 +35,20 @@ const Dashboard = () => {
   const [selectedPlan, setSelectedPlan] = useState('');
   //const plansRef = useRef(null);
   const navigate = useNavigate();
+  const handleLogout = () => {
+  localStorage.removeItem("user");
+  navigate("/login");
+};
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const mode = params.get("mode") || "new"; 
-  
+  const breadcrumbItems = [
+  { label: "Region", path: "/" },
+  { label: "Dashboard", path: "/dashboard" },
+  { label: "Client", path: "/client-info" },
+  { label: "Contacts", path: "/contact-information" },
+  { label: "Proposal", path: "/proposal" }
+];
   useEffect(() => {
     const fetchPackages = async () => {
       try {
@@ -310,7 +321,17 @@ const comparisonDataGroupedByCategory = comparisonData
         </div>
       )}
       <Navbar user={user} />
-      <main className="flex-grow pt-20 px-4 md:px-8">
+
+<div className="pt-20 w-full">
+  <PageBreadcrumb items={breadcrumbItems} currentStep={1} />
+</div>
+ <button
+    onClick={handleLogout}
+    className="absolute right-6 md:right-10 px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition"
+  >
+    Logout
+  </button>
+            <main className="flex-grow pt-20 px-4 md:px-8">
         {/* ✅ Admin Edit Buttons */}
         {user.role === 'admin' && (
           <div className="flex justify-end mb-6 gap-2">
@@ -354,7 +375,6 @@ const comparisonDataGroupedByCategory = comparisonData
         )}
 
         {/* Combined Buttons for Users */}
-        {user.role !== 'approver' && user.role !== 'admin' && (
           <div className="flex justify-center gap-6 mb-10">
             <button
               onClick={() => navigate('/my-proposals')}
@@ -371,7 +391,6 @@ const comparisonDataGroupedByCategory = comparisonData
               </button>
             )}
           </div>
-        )}
         <div className="mt-16 overflow-x-auto">
           <h1 className="text-4xl font-extrabold text-center text-blue-900 mb-3">
             Compare Plans & Choose
@@ -596,7 +615,6 @@ const comparisonDataGroupedByCategory = comparisonData
           </div>
         )}
         {/* Select Your Plan Section */}
-        {user.role !== 'approver' && (
           <div className="mt-16 mb-24">
             <h2 className="text-3xl font-extrabold text-center text-blue-900 mb-10">
               Select Your Plan
@@ -684,7 +702,6 @@ const comparisonDataGroupedByCategory = comparisonData
               </button>
             </div>
           </div>
-        )}
       </main>
 
       {/* Modals & Footer */}
@@ -903,6 +920,7 @@ const comparisonDataGroupedByCategory = comparisonData
           </div>
         </div>
       )}
+      <PageBreadcrumb items={breadcrumbItems} currentStep={1} bottom />
       <Footer />
       <style>
         {`

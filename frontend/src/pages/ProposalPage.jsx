@@ -4,11 +4,27 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import zinghrLogo from "../assets/Zing-Logo.png";
 import axios from "axios";
+import PageBreadcrumb from "../components/PageBreadcrumb";
 
 const BASE_URL = process.env.REACT_APP_API_URL;
 
 const ProposalPage = () => {
   const navigate = useNavigate();
+  const handleLogout = () => {
+  localStorage.removeItem("user");
+  navigate("/login");
+};
+
+const goToDashboard = () => {
+  navigate("/dashboard");
+};
+  const breadcrumbItems = [
+  { label: "Region", path: "/" },
+  { label: "Dashboard", path: "/dashboard" },
+  { label: "Client", path: "/client-info" },
+  { label: "Contacts", path: "/contact-information" },
+  { label: "Proposal", path: "/proposal" }
+];
   const user = JSON.parse(localStorage.getItem("user"));
    const [isEditing, setIsEditing] = useState(true);
   const params = new URLSearchParams(window.location.search);
@@ -467,6 +483,9 @@ useEffect(() => {
     <div className="relative min-h-screen bg-gray-50 text-black">
        <style>{printStyles}</style>
       <Navbar user={user} className="no-print" />
+      <div className="pt-20 flex justify-center no-print">
+  <PageBreadcrumb items={breadcrumbItems} currentStep={4} />
+</div>
       {user.role === "approver" && !viewOnly && (
   <section className="mt-16 mb-10">
     
@@ -520,7 +539,24 @@ useEffect(() => {
   </section>
 )}    
 
-      <main className="flex-grow pt-20 px-6 md:px-10 max-w-6xl mx-auto">
+      <main className="flex-grow px-6 md:px-10 max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-4 no-print">
+  {/* Left side - Home */}
+  <button
+    onClick={goToDashboard}
+    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+  >
+    Home
+  </button>
+
+  {/* Right side - Logout */}
+  <button
+    onClick={handleLogout}
+    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition"
+  >
+    Logout
+  </button>
+</div>
         {!viewOnly && (
         <div className="flex flex-wrap justify-end gap-3 no-print">
  <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
@@ -804,7 +840,7 @@ useEffect(() => {
 {discountBreakdown.length > 0 && (
   <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
     <h3 className="text-md font-semibold text-green-800 mb-2">
-      🎉 Discounts Applied
+      🎉 Price Optimization Applied
     </h3>
 
     {discountBreakdown
@@ -1203,7 +1239,9 @@ useEffect(() => {
         {/* --- Footer --- */}
         
       </main>
-
+<div className="pt-20 flex justify-center no-print">
+  <PageBreadcrumb items={breadcrumbItems} currentStep={4} />
+</div>
       <Footer className="no-print" />
     </div>
   );

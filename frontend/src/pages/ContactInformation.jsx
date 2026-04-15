@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import PageBreadcrumb from "../components/PageBreadcrumb";
 
 const BASE_URL = process.env.REACT_APP_API_URL;
 
@@ -25,7 +26,13 @@ const ContactInformation = () => {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientMobile, setClientMobile] = useState("");
-
+const breadcrumbItems = [
+  { label: "Region", path: "/" },
+  { label: "Dashboard", path: "/dashboard" },
+  { label: "Client", path: "/client-info" },
+  { label: "Contacts", path: "/contact-information" },
+  { label: "Proposal", path: "/proposal" }
+];
   // ZingHR POC
   const [zinghrName, setZinghrName] = useState("");
   const [zinghrEmail, setZinghrEmail] = useState("");
@@ -87,7 +94,9 @@ const ContactInformation = () => {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 text-black">
       <Navbar user={user} />
-
+<div className="pt-20 flex justify-center">
+  <PageBreadcrumb items={breadcrumbItems} currentStep={3} />
+</div>
       <main className="flex-grow pt-20 px-6 md:px-10">
         <h1 className="text-4xl font-extrabold text-blue-900 mb-10 text-center">
           Contact Information
@@ -190,6 +199,9 @@ const ContactInformation = () => {
           </div>
         </div>
       </main>
+      <div className="pt-20 flex justify-center">
+  <PageBreadcrumb items={breadcrumbItems} currentStep={3} />
+</div>
       <Footer />
     </div>
   );

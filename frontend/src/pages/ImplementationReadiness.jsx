@@ -143,6 +143,30 @@ const handleToggleSectionItems = (sectionId) => {
   )
 );
 };
+
+const handleToggleSectionNotApplicable = (sectionId) => {
+  const sectionItems = items.filter(
+    (item) => Number(item.main_id) === Number(sectionId)
+  );
+
+  if (sectionItems.length === 0) return;
+
+  const areAllNotApplicable = sectionItems.every(
+    (item) => Number(item.is_not_applicable) === 1
+  );
+
+  setItems((prev) =>
+    prev.map((item) =>
+      Number(item.main_id) === Number(sectionId)
+        ? {
+            ...item,
+            is_not_applicable: areAllNotApplicable ? 0 : 1,
+            is_completed: 0,
+          }
+        : item
+    )
+  );
+};
 const totalItems = items.length;
 
 const completedItems = items.filter(
@@ -397,6 +421,9 @@ const handleRemoveFile = async (id) => {
       Number(item.is_completed) === 1 ||
       Number(item.is_not_applicable) === 1
   );
+  const areAllSectionItemsNotApplicable =
+  sectionItems.length > 0 &&
+  sectionItems.every((item) => Number(item.is_not_applicable) === 1);
                 const completedSectionItems = sectionItems.filter(
   (item) =>
     Number(item.is_completed) === 1 || Number(item.is_not_applicable) === 1
@@ -426,13 +453,21 @@ const handleRemoveFile = async (id) => {
 
                 {isExpanded && (
                   <div className="px-6 pb-6 border-t border-gray-100">
-                    <div className="pt-4 flex justify-end">
+                    <div className="pt-4 flex justify-end gap-3">
   <button
     type="button"
     onClick={() => handleToggleSectionItems(section.id)}
     className="px-4 py-2 text-sm font-semibold bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition"
   >
     {areAllSectionItemsChecked ? "Unselect All" : "Select All"}
+  </button>
+
+  <button
+    type="button"
+    onClick={() => handleToggleSectionNotApplicable(section.id)}
+    className="px-4 py-2 text-sm font-semibold bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition"
+  >
+    {areAllSectionItemsNotApplicable ? "Unselect All N/A" : "Select All N/A"}
   </button>
 </div>
                     <div className="mt-4 space-y-3">

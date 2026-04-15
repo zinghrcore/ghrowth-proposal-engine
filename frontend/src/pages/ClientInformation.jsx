@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import PageBreadcrumb from "../components/PageBreadcrumb";
 
 const BASE_URL = process.env.REACT_APP_API_URL;
 
@@ -27,6 +28,13 @@ const ClientInformation = () => {
     proplus: 600,
     ghrowth: 500,
   };
+  const breadcrumbItems = [
+  { label: "Region", path: "/" },
+  { label: "Dashboard", path: "/dashboard" },
+  { label: "Client", path: "/client-info" },
+  { label: "Contacts", path: "/contact-information" },
+  { label: "Proposal", path: "/proposal" }
+];
   const normalizedPlan = selectedPlan.replace(/\s+/g, "").toLowerCase();
   let minEmployees = 1000;
   if (normalizedPlan.includes("proplus")) {
@@ -106,6 +114,9 @@ useEffect(() => {
 
   setReadinessDiscount(savedDiscount);
   setReadinessScore(savedScore);
+}, []);
+useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }, []);
 const applyAdditionalImplementationDiscount = (fee) => {
   if (!fee) return 0;
@@ -340,7 +351,7 @@ let newImplementationFee = applyAdditionalImplementationDiscount(baseImplementat
     }
     return {
       ...prev,
-      rate: finalRate,
+      rate: baseRate,
       effectiveEmployees,
       monthlyPlatform,
       totalMonthly,
@@ -419,6 +430,26 @@ const handleSaveModules = () => {
     rate: newRate
   }));
 };
+const getBasePepmRate = () => {
+  return Number(discountedRate || priceDetails.rate || originalRate || 0);
+};
+
+const getRateForFrequency = (freq) => {
+  const baseRate = getBasePepmRate();
+
+  let discount = 0;
+  if (freq === "Quarterly") discount = 3;
+  if (freq === "Half-Yearly") discount = 4;
+  if (freq === "Annual") discount = 5;
+
+  const finalRate = baseRate - (baseRate * discount) / 100;
+  return finalRate;
+};
+
+const getSelectedFrequencyRate = () => {
+  return getRateForFrequency(billingFrequency);
+};
+
 const applyDiscount = async () => {
   if (!discountCode) return;
   try {
@@ -450,7 +481,7 @@ const applyDiscount = async () => {
     console.error(error);
     setDiscountDetails(null);
     setDiscountError(
-      error.response?.data?.message || "Invalid or expired discount code"
+      error.response?.data?.message || "Invalid or expired price optimization code"
     );
   }
 };  
@@ -491,14 +522,14 @@ const discountBreakdown = [
     amount: baseRate,
   },
   {
-    label: "Billing Frequency Discount",
+  label: "Billing Frequency Price Optimization",
     percent: billingDiscount,
     amount: -((baseRate * billingDiscount) / 100),
   },
 ];
 if (readinessDiscountPercent > 0) {
   discountBreakdown.push({
-    label: "Implementation Readiness Discount",
+    label: "Implementation Readiness Price Optimization",
     percent: readinessDiscountPercent,
     amount: "Applied on One-Time Implementation Fee",
   });
@@ -507,7 +538,7 @@ if (readinessDiscountPercent > 0) {
 // 👉 Add discount code breakdown ONLY if applied
 if (discountPercent > 0) {
   discountBreakdown.push({
-    label: "Discount Code",
+    label: "Price Optimization Code",
     percent: discountPercent,
     amount: -((baseRate * discountPercent) / 100),
   });
@@ -545,6 +576,9 @@ if (discountPercent > 0) {
 return (
   <div className="relative min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 text-black">
     <Navbar user={user} />
+    <div className="pt-20 flex justify-center">
+  <PageBreadcrumb items={breadcrumbItems} currentStep={2} />
+</div>
     <main className="flex-grow pt-20 px-6 md:px-10">
       <h1 className="text-4xl font-extrabold text-blue-900 mb-2 text-center">Client Information</h1>
       <p className="text-center text-gray-600 mb-1">
@@ -859,24 +893,39 @@ return (
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {["Monthly", "Quarterly", "Half-Yearly", "Annual"].map((freq) => (
-                  <label
-                    key={freq}
-                    className={`flex items-center justify-center gap-2 border p-3 rounded-xl cursor-pointer transition-all duration-200
-                    ${
-                      billingFrequency === freq ? "bg-blue-600 text-white border-blue-600 shadow-md" : "bg-gray-50 text-gray-700 border-gray-300 hover:bg-blue-50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="billingFrequency"
-                      value={freq}
-                      checked={billingFrequency === freq}
-                      onChange={(e) => setBillingFrequency(e.target.value)}
-                      className="accent-blue-600"
-                    />
-                    <span className="font-medium">{freq}</span>
-                  </label>
-                ))}
+  <label
+    key={freq}
+    className={`flex flex-col items-center justify-center gap-1 border p-3 rounded-xl cursor-pointer transition-all duration-200
+    ${
+      billingFrequency === freq
+        ? "bg-blue-600 text-white border-blue-600 shadow-md"
+        : "bg-gray-50 text-gray-700 border-gray-300 hover:bg-blue-50"
+    }`}
+  >
+    <input
+      type="radio"
+      name="billingFrequency"
+      value={freq}
+      checked={billingFrequency === freq}
+      onChange={(e) => setBillingFrequency(e.target.value)}
+      className="accent-blue-600"
+    />
+
+    <span className="font-medium">{freq}</span>
+
+    <span
+      className={`text-xs font-semibold ${
+        billingFrequency === freq ? "text-white" : "text-green-600"
+      }`}
+    >
+      {currencySymbol}
+      {Number(getRateForFrequency(freq)).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}
+    </span>
+  </label>
+))}
               </div>
             </div>
             <h2 className="text-lg font-bold mb-4">💰 Price Preview</h2>
@@ -886,48 +935,58 @@ return (
                   Rate (PEPM) ({billingFrequency})
                 </span>
                 <div className="text-green-600 text-sm">
-                  Billing Frequency Discount: {getBillingFrequencyDiscount()}%
+                  Billing Frequency Price Optimization: {getBillingFrequencyDiscount()}%
                 </div>
                 <div className="flex items-center gap-1">
                   <span>{currencySymbol}</span>
                   <input
                     type="text"
                     value={
-                      priceDetails.rate === 0 && priceDetails.rate !== "" ? "" : priceDetails.rate
-                    }
+  getSelectedFrequencyRate() === 0
+    ? ""
+    : Number(getSelectedFrequencyRate()).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                        setPriceDetails((prev) => ({
-                          ...prev,
-                          rate: val,
-                          userEditedRate: true,
-                        }));
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const val = parseFloat(e.target.value);
-                      if (isNaN(val) || e.target.value.trim() === "") {
-                        setPriceDetails((prev) => ({
-                          ...prev,
-                          rate: minRate,
-                        }));
-                        return;
-                      }
-                      if (val < minRate) {
-                        setPopupMessage(`Rate (PEPM) cannot be less than ₹${minRate}`);
-                        setShowPopup(true);
-                        setPriceDetails((prev) => ({
-                          ...prev,
-                          rate: minRate,
-                        }));
-                        return;
-                      }
-                      setPriceDetails((prev) => ({
-                        ...prev,
-                        rate: val,
-                      }));
-                    }}
+  const val = e.target.value.replace(/,/g, "");
+  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+    setPriceDetails((prev) => ({
+      ...prev,
+      rate: val,
+      userEditedRate: true,
+    }));
+  }
+}}
+                   onBlur={(e) => {
+  const rawValue = e.target.value.replace(/,/g, "");
+  const val = parseFloat(rawValue);
+
+  if (isNaN(val) || rawValue.trim() === "") {
+    setPriceDetails((prev) => ({
+      ...prev,
+      rate: minRate,
+    }));
+    return;
+  }
+
+  if (val < minRate) {
+    setPopupMessage(`Rate (PEPM) cannot be less than ₹${minRate}`);
+    setShowPopup(true);
+    setPriceDetails((prev) => ({
+      ...prev,
+      rate: minRate,
+    }));
+    return;
+  }
+
+  setPriceDetails((prev) => ({
+    ...prev,
+    rate: val,
+    userEditedRate: true,
+  }));
+}}
                     placeholder="Enter Rate"
                     className="w-28 text-right text-blue-900 font-semibold border border-blue-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-400 outline-none"
                   />
@@ -1008,7 +1067,7 @@ return (
         <div className="bg-white shadow-md rounded-2xl p-6 border border-gray-300 flex items-center gap-4">
           <div className="flex-grow">
             <label className="block text-sm font-medium mb-1">
-              Discount Code
+              Price Optimization Code
             </label>
             <input
               type="text"
@@ -1022,7 +1081,7 @@ return (
             )}
             {discountDetails && (
               <p className="text-green-600 text-sm mt-1">
-                Discount applied: {discountDetails.discPercentage}% off{" "}
+  Price Optimization applied: {discountDetails.discPercentage}% off{" "}
                 {discountDetails.discType === "Rate(PEPM)"
                   ? "Rate (PEPM)"
                   : discountDetails.discType === "One-Time Implementation Fee"
@@ -1061,6 +1120,9 @@ return (
         </div>
       </div>
     </main>
+    <div className="flex justify-center">
+  <PageBreadcrumb items={breadcrumbItems} currentStep={2} bottom />
+</div>
   <Footer/>
   {showPopup && (
     <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">

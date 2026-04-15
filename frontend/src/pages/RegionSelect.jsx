@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import PageBreadcrumb from "../components/PageBreadcrumb";
 
 const BASE_URL = process.env.REACT_APP_API_URL;
 
@@ -11,7 +12,13 @@ const [regions, setRegions] = React.useState([]);
 const [editRegions, setEditRegions] = React.useState([]); // Regions admin can edit
 const [isAdminModalOpen, setIsAdminModalOpen] = React.useState(false); // Modal open/close
 const [selectedRegion, setSelectedRegion] = React.useState(null);
-
+const breadcrumbItems = [
+  { label: "Region", path: "/" },
+  { label: "Dashboard", path: "/dashboard" },
+  { label: "Client", path: "/client-info" },
+  { label: "Contacts", path: "/contact-information" },
+  { label: "Proposal", path: "/proposal" }
+];
 React.useEffect(() => {
   const fetchRegions = async () => {
     try {
@@ -57,9 +64,12 @@ console.log("Regions:", regions);
 
   
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-gray-100 p-6 font-sans text-black">
-      {/* Admin Modal for Managing Regions */}
+ return (
+  <div className="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 p-6 font-sans text-black">
+    <div className="pt-6 flex justify-center">
+      <PageBreadcrumb items={breadcrumbItems} currentStep={0} />
+    </div>
+ <div className="min-h-[calc(100vh-100px)] flex items-center justify-center">
 {isAdminModalOpen && (
   <div className="fixed inset-0 flex justify-center items-center bg-black/50 backdrop-blur-md z-50">
     <div className="bg-white rounded-3xl shadow-3xl w-full max-w-3xl p-6 relative animate-fadeIn border border-blue-200">
@@ -226,6 +236,7 @@ console.log("Regions:", regions);
 
       </div>
     </div>
+      </div>
   );
 };
 
