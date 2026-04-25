@@ -48,7 +48,8 @@ const [projectKickoffDays, setProjectKickoffDays] = useState(10); // 10 working 
 const [minEmployees, setMinEmployees] = useState(100); // 100 employees\
 const [isDownloading, setIsDownloading] = useState(false);
 const [annualInflationPercent, setAnnualInflationPercent] = useState(10); // 10%
-
+const isSlabPricing = clientInfo.isSlabPricing || false;
+const slabs = clientInfo.slabs || [];
   // ✅ Region and Currency Setup
 const regionInfo = JSON.parse(localStorage.getItem("region")) || { name: "India", currency: "INR" };
 const currencySymbol = regionInfo.currency === "USD" ? "$" : "₹";
@@ -83,6 +84,10 @@ const selectedModulesData =
 const selectedModules = Array.isArray(selectedModulesData)
   ? selectedModulesData
   : selectedModulesData.modules || [];
+  const displayedModules =
+  source === "exploreModules"
+    ? selectedModules
+    : planModules;
 const moduleAssignments =
   JSON.parse(localStorage.getItem("moduleAssignments")) || {};
   console.log("Selected Modules:", selectedModulesData);
@@ -96,7 +101,9 @@ const discountBreakdown = price.discountBreakdown || [];
 let rate = price.rate || 0;
 let implementationFee = price.implementationFee || 0;
 const effectiveEmployees = price.effectiveEmployees || 0;
-let monthlyPlatform = price.monthlyPlatform || 0;
+let monthlyPlatform = isSlabPricing
+  ? price.monthlyPlatform
+  : price.monthlyPlatform || 0;
 let totalMonthly = Number(price.totalMonthly || 0);
 let firstYearTotal = price.firstYearTotal || 0;
 
@@ -218,7 +225,7 @@ await new Promise(resolve => setTimeout(resolve, 500)); // wait for render
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      pagebreak: { mode: ["css", "legacy"] },
     };
 
     const pdfBlob = await html2pdf().set(opt).from(element).outputPdf("blob");
@@ -255,7 +262,7 @@ const handleDownloadPDF = async () => {
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      pagebreak: { mode: ["css", "legacy"] },
     };
 
     const pdfBlob = await html2pdf().set(opt).from(element).outputPdf("blob");
@@ -486,7 +493,7 @@ useEffect(() => {
       <div className="pt-20 flex justify-center no-print">
   <PageBreadcrumb items={breadcrumbItems} currentStep={4} />
 </div>
-      {user.role === "approver" && !viewOnly && (
+      {/*{user.role === "approver" && !viewOnly && (
   <section className="mt-16 mb-10">
     
 
@@ -537,7 +544,7 @@ useEffect(() => {
       </p>
     )}
   </section>
-)}    
+)} */}   
 
       <main className="flex-grow px-6 md:px-10 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-4 no-print">
@@ -572,6 +579,7 @@ useEffect(() => {
   {/* Right: Buttons */}
   {/* Right: Buttons */}
   {/* Send for Approval */}
+  {user?.role !== "approver" && (
   <button
     onClick={handleSendForApproval}
     disabled={
@@ -598,6 +606,7 @@ useEffect(() => {
         : "Send for Approval"}
     </span>
   </button>
+)}
 
   {/* View Agreement (Toggle) */}
 <button
@@ -788,15 +797,82 @@ useEffect(() => {
   </h2>
 
   {/* Monthly & Annual Summary Card */}
-  <div className="bg-gray-900 text-white rounded-xl p-6 mb-3 grid md:grid-cols-2 gap-6">
+  <div className="bg-gray-900 text-white rounded-xl p-6 mb-3">
+    {isSlabPricing && slabs.length > 0 && (
+  <div className="mb-6">
+    <p className="text-sm text-gray-300 font-bold uppercase mb-3 tracking-wide">
+      Slab Breakdown
+    </p>
+
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border border-gray-700 rounded-lg overflow-hidden">
+        <thead>
+          <tr className="bg-gray-800 text-gray-200">
+            <th className="p-3 text-left">Range</th>
+<th className="p-3 text-right">Rate (PEPM)</th>
+<th className="p-3 text-right">Employees</th>
+<th className="p-3 text-right">Amount</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {slabs.map((slab, index) => {
+            const from = slab.from;
+            const to = slab.to;
+            const billingFrequency = clientInfo.billingFrequency || "Monthly";
+
+let billingDiscount = 0;
+if (billingFrequency === "Quarterly") billingDiscount = 3;
+if (billingFrequency === "Half-Yearly") billingDiscount = 4;
+if (billingFrequency === "Annual") billingDiscount = 5;
+
+const rate = Number(slab.rate || 0);
+const finalRate = rate - (rate * billingDiscount) / 100;
+
+            const count = Math.min(
+              effectiveEmployees - from,
+              to - from
+            );
+
+            if (count <= 0) return null;
+
+            const amount = count * finalRate;
+
+            return (
+              <tr key={index} className="border-t border-gray-700">
+                <td className="p-3">{from}-{to}</td>
+
+<td className="p-3 text-right">
+  {currencySymbol}
+  {Number(finalRate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+</td>
+
+<td className="p-3 text-right">{count}</td>
+
+<td className="p-3 text-right font-semibold text-green-400">
+  {currencySymbol}
+  {amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
     {/* Monthly Recurring */}
     <div className="space-y-2">
-      <p className="text-sm text-gray-300 font-semibold uppercase mb-2">
+      <p className="text-sm text-gray-300 font-bold uppercase mb-2 tracking-wide">
         Monthly Recurring
       </p>
       <div className="flex justify-between">
-        <span>Platform Rate (PEPM)</span>
-        <span>{currencySymbol}{rate.toLocaleString()}</span>
+        {!isSlabPricing && (
+  <>
+    <span>Platform Rate (PEPM)</span>
+    <span>{currencySymbol}{rate.toLocaleString()}</span>
+  </>
+)}
       </div>
       <div className="flex justify-between">
         <span>Billable Employees</span>
@@ -812,20 +888,33 @@ useEffect(() => {
         <span>{currencySymbol}{totalMonthly.toLocaleString()}</span>
       </div>
     </div>
-
+<div className="flex justify-between font-semibold mt-2">
+  <span>One-Time Implementation Cost</span>
+  <span>{currencySymbol}{implementationFee.toLocaleString()}</span>
+</div>
     {/* Annual Summary */}
-    <div className="space-y-2">
-      <p className="text-sm text-gray-300 font-semibold uppercase mb-2">
+    <div className="space-y-2 mt-4">
+      <p className="text-sm text-gray-300 font-bold uppercase mb-2 tracking-wide">
         Annual Summary
       </p>
       <div className="flex justify-between">
-        <span>Annual Subscription (12 months)</span>
-        <span>{currencySymbol}{firstYearTotal.toLocaleString()}</span>
-      </div>
+  <span>Annual Subscription (12 months)</span>
+  <span>{currencySymbol}{firstYearTotal.toLocaleString()}</span>
+</div>
       <div className="flex justify-between">
         <span>Customization Rate</span>
         <span>
-  {regionInfo.currency === "USD" ? "$166.28" : "Rs. 15,000"} per effort day
+  {currencySymbol}
+{Number(
+  regionInfo.currency === "INR"
+    ? 15000
+    : 15000 *
+      (Number(regionInfo.conversionValue || 0) /
+        Number(regionInfo.conversionBaseINR || 1))
+).toLocaleString("en-IN", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})} per effort day
 </span>
       </div>
       <hr className="border-gray-700 my-1" />
@@ -833,6 +922,7 @@ useEffect(() => {
         <span>First Year Subscription</span>
         <span>{currencySymbol}{firstYearTotal.toLocaleString()}</span>
       </div>
+      
     </div>
   </div>
 
@@ -861,16 +951,6 @@ useEffect(() => {
   </div>
 )}
 
-  {/* One-Time Implementation Cost */}
-  <div className="border border-yellow-400 rounded-xl bg-yellow-50 p-4 flex justify-between items-center">
-    <div>
-      <p className="font-semibold text-yellow-800">One-Time Implementation Cost</p>
-      <p className="text-sm text-yellow-700">Payable separately before go-live</p>
-    </div>
-    <p className="font-bold text-yellow-900 text-lg">
-      {currencySymbol}{implementationFee.toLocaleString()}
-    </p>
-  </div>
 </section>
 
 {source !== "exploreModules" && (
@@ -907,7 +987,7 @@ useEffect(() => {
     </h2>
 
     {modulesAreDifferent ? (
-  (selectedModulesData?.modules || []).map((mod) => {
+  displayedModules.map((mod) => {
     const id = mod.modId || mod.id || mod.moduleId;
     const assignedTypes = moduleAssignments[id] || [];
 
@@ -940,7 +1020,7 @@ useEffect(() => {
   })
 ) : (
       Object.entries(
-        (selectedModulesData?.modules || []).reduce((acc, mod) => {
+displayedModules.reduce((acc, mod) => {
           const category = mod.modObjective || "Other";
           if (!acc[category]) acc[category] = [];
           acc[category].push(mod);
@@ -1192,53 +1272,402 @@ useEffect(() => {
     </p>
 
     <div className="text-gray-700 text-sm leading-relaxed space-y-3">
-      <p>
-        <strong>1. DEFINITIONS AND INTERPRETATIONS</strong><br />
-        In this Agreement unless the context requires otherwise the following words and phrases will have the meaning as defined in Schedule 1.
-      </p>
-      <p>
-        <strong>2. MAINTENANCE AND SUPPORT SERVICES</strong><br />
-        ZingHR agrees to provide the Maintenance and Support Services for the Software pursuant to this Agreement throughout the Term of the Agreement during the business hours (9am to 7pm) on standard working days ("Business Working Hours"), via its support portal or email. Each request for maintenance or support shall be raised as a support ticket.
-      </p>
-      <p>
-        Availability: ZingHR shall ensure that the Software is functional in all material aspects 99.95% of the time during any monthly period.
-      </p>
-      <p>
-        ZingHR shall regularly perform scheduled maintenance of the Software and other equipment and materials used for providing the Software. Such maintenance shall be communicated to the Customer at least five (5) days in advance, and shall occur outside of standard working hours, for not more than 15 hours in each quarter.
-      </p>
-      <p>
-        <strong>3. INTELLECTUAL PROPERTY</strong><br />
-        Both Parties agree that all Intellectual Property Rights in the Software, Documentation and ZingHR Material are retained by ZingHR. Nothing in this Agreement grants the Customer any right, title or interest in the Software, Documentation or ZingHR Material. All rights, title and interest in and to any Customer data and systems remain the property of the Customer.
-      </p>
-      <p>
-        <strong>4. FEES</strong><br />
-        In consideration of ZingHR carrying out and performing its obligations and the provision of the Services, the Customer shall pay ZingHR the Fees as set out in Schedule 1 - Proposal.
-      </p>
-      <p>
-        <strong>5. TERM & TERMINATION</strong><br />
-        This Agreement will commence on the Effective Date and shall automatically renew each year unless terminated by either Party. Upon termination, ZingHR will, at Customer's request, destroy or deliver all materials in its possession. The Customer may reactivate use of the Software within ninety (90) days upon payment of a reactivation fee.
-      </p>
-      <p>
-        <strong>6. CONFIDENTIALITY</strong><br />
-        Each Party will keep all Confidential Information confidential and use it only for the performance of its obligations under this Agreement.
-      </p>
-      <p>
-        <strong>7. INDEMNITY AND LIABILITY</strong><br />
-        ZingHR agrees to indemnify, defend and hold harmless the Customer from any amount awarded in favour of a third party by the final judgment of a court of competent jurisdiction.<br />
-        <em>Limitation of liability:</em> ZingHR's liability for any loss or damage is limited to the Fees paid or payable in one (1) month prior to the claim.
-      </p>
-      <p>
-        <strong>8. GOVERNING LAW & JURISDICTION</strong><br />
-        This Agreement will be governed by the laws of India. If the Parties fail to resolve a dispute within thirty (30) days, the matter shall be referred to arbitration under the Indian Arbitration and Conciliation Act, 1996.
-      </p>
+      <p className="mt-4">
+  <strong>1. DEFINITIONS AND INTERPRETATIONS</strong>
+</p>
+
+<p>
+  In this Agreement unless the context requires otherwise the following words and phrases will have the following meaning:
+</p>
+
+<table className="w-[95%] ml-4 text-xs border border-gray-400 border-collapse mt-2 mb-3">
+  <tbody>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold w-1/4">Agreement</td>
+      <td className="border border-gray-400 p-1.5">
+        means this agreement including the schedules, annexures, appendices and any other documents attached or to be attached to this Agreement as permitted in this Agreement together with any variations or amendments to this agreement as may from time to time be agreed in writing by the Parties;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Proposal</td>
+      <td className="border border-gray-400 p-1.5">
+        means the proposal for the Software attached to this Agreement;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Confidential Information</td>
+      <td className="border border-gray-400 p-1.5">
+        all information not at present in the public domain used in, or otherwise relating to the business, customers or financial or other affairs of a Party including, without limitation, information relating to:
+        <br />(a) the marketing of any products or services including, without limitation, customer names and lists and any other details of customers, sales targets, sales statistics, market share statistics, prices, market research reports and surveys and advertising or other promotional materials; or
+        <br />(b) future projects, business development or planning, commercial relationships or negotiations;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Data Privacy Legislations</td>
+      <td className="border border-gray-400 p-1.5">
+        means all the applicable Laws governing or relating to global adherence to Data Security Process and Privacy;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Fees</td>
+      <td className="border border-gray-400 p-1.5">
+        means the total fees payable by the Customer to ZingHR under this Agreement as more particularly described in Schedule 1- Proposal;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Force Majeure</td>
+      <td className="border border-gray-400 p-1.5">
+        means circumstances beyond the reasonable control of the Parties which results in a Party being unable to observe or perform on time an obligation under this Agreement. Force Majeure circumstances shall include but shall not be limited to acts of God, lightning strikes, earthquakes, floods, storms, explosions, fires, epidemic, pandemic and any natural disaster; acts of war, acts of public enemies, terrorism, riots, civil commotion, malicious damage, sabotage and revolution and strikes;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Intellectual Property Rights</td>
+      <td className="border border-gray-400 p-1.5">
+        means all intellectual property rights including but not limited to copyright, trade mark, design, patent, semiconductor or circuit layout rights, moral rights, database rights, trade names, business names, rights in and to software (object code and source code), domain names, databases, inventions, discoveries, know-how and any other intellectual or industrial property rights in each and every part of the world together with all applications, renewals, revisal’s and extensions;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Laws</td>
+      <td className="border border-gray-400 p-1.5">
+        means any and all applicable laws (including without limitation) all statutory law, decrees, regulations, ministerial decisions, guidelines, code of practice, policies and other pronouncements having the effect of law or by the federal government of any city, municipality, court, tribunal, agency, government ministry, department, commission, arbitrator, board or bureau;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Materials</td>
+      <td className="border border-gray-400 p-1.5">
+        the materials provided by or on behalf of Customer to ZingHR from time to time (including any information contained in such materials) for the purposes of this Agreement;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Material Breach</td>
+      <td className="border border-gray-400 p-1.5">
+        means a breach by either Party of any of its obligations under this Agreement which has or is likely to have a material adverse effect;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Permitted Users</td>
+      <td className="border border-gray-400 p-1.5">
+        mean the number of authorised users of the Software, which can be increased from time-to-time;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Software</td>
+      <td className="border border-gray-400 p-1.5">
+        means the ZingHR Software which includes without limitation third party software and includes the various integrations with other software systems in addition to the application software as modified, customized, configured, or integrated to meet the specifications and Customer’s requirements in addition to ZingHR’s enhancements embedded in the system;
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border border-gray-400 p-1.5 font-semibold">Term</td>
+      <td className="border border-gray-400 p-1.5">
+        means the period commencing on the Effective Date and ending upon the date this Agreement is terminated in accordance with the provisions herein;
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+      <p className="mt-4">
+  <strong>1.1 Maintenance and Support Services</strong>
+</p>
+
+<p className="ml-4">
+  <strong>1.1.1</strong> ZingHR agrees to provide the Maintenance and Support Services for the Software pursuant to this Agreement throughout the Term of the Agreement during the business hours (9am to 7pm) on standard working days ("Business Working Hours"), via its support portal or email. Each request for maintenance or support shall be raised as a support ticket. If a support ticket is raised out of Business Working Hours, target will roll over to the next business day.
+</p>
+
+<p className="ml-4">
+  <strong>1.1.2 Availability:</strong> ZingHR shall ensure that the Software is functional in all material aspects 99.95% of the time during any monthly period. ZingHR measures availability over each calendar month by dividing the difference between the total number of minutes in the monthly measurement period and any unplanned downtime by the total number of minutes in the measurement period and multiplying the result by 100 to reach a percent figure.
+</p>
+
+<p className="ml-4">
+  <strong>1.1.3</strong> Subsequent to the issuing of the acceptance by Customer in accordance with Clause 4 of this Agreement, ZingHR agrees to correct any error or defect(s) in the Software and/or in other respect support the Software pursuant to this Agreement. ZingHR will not be responsible for unavailability of the Software to Permitted Users due to hardware or network failure from Customer’s end.
+</p>
+
+<p className="ml-4">
+  <strong>1.1.4 Maintenance of Software</strong><br />
+  ZingHR shall regularly perform a scheduled maintenance of the Software and other equipment and materials used for providing the Software. Such maintenance shall be communicated to the Customer at least five (5) days in advance, and shall ensure that such maintenance occurs outside of standard working hours, for not more than 15 hours in each quarter. Except to the above, ZingHR, in its sole discretion, may take the Software down for unscheduled maintenance, and in such event, will attempt to notify the Customer in advance.
+</p>
+
+<p className="ml-4">
+  <strong>1.1.5</strong> Any Sandbox, Release Preview, Beta, Education, Demo, Developer and/or debugger accounts and any other nonproduction or test environments are expressly excluded from the calculation of availability.
+</p>
+
+<p className="ml-4">
+  <strong>1.1.6 Service Levels</strong><br />
+  Each support ticket will be prioritised based on the impact and urgency reported by the Customer. The support shall be provided as per the below matrix:
+</p>
+
+{/* Severity Table */}
+<table className="w-[95%] ml-4 text-sm border border-gray-400 mt-3 mb-4">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="border border-gray-400 p-2">Level</th>
+      <th className="border border-gray-400 p-2">Severity Category</th>
+      <th className="border border-gray-400 p-2">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td className="border border-gray-400 p-2">Level 1</td>
+      <td className="border border-gray-400 p-2">Critical</td>
+      <td className="border border-gray-400 p-2">
+        Critical production issue affecting all users, including system unavailability and data integrity issues with no workaround available.
+      </td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Level 2</td>
+      <td className="border border-gray-400 p-2">Urgent</td>
+      <td className="border border-gray-400 p-2">
+        Major functionality is impacted or significant performance degradation is experienced. Issue is persistent and affects many users and/or major functionality. No reasonable workaround available. Includes time-sensitive requests such as feature bug/issue or data export.
+      </td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Level 3</td>
+      <td className="border border-gray-400 p-2">Medium</td>
+      <td className="border border-gray-400 p-2">
+        System performance issue or bug affecting some but not all users. Short-term workaround available but not scalable.
+      </td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Level 4</td>
+      <td className="border border-gray-400 p-2">Low</td>
+      <td className="border border-gray-400 p-2">
+        Routine technical inquiry or configuration assistance or Reporting requests. Bug affecting a small number of users with a reasonable workaround available.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<p className="ml-4">
+  <strong>SLA Response Charter</strong>
+</p>
+
+{/* SLA Table */}
+<table className="w-[95%] ml-4 text-sm border border-gray-400 mt-2 mb-4">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="border border-gray-400 p-2">Severity</th>
+      <th className="border border-gray-400 p-2">Target Acknowledgement</th>
+      <th className="border border-gray-400 p-2">Target Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td className="border border-gray-400 p-2">Critical</td>
+      <td className="border border-gray-400 p-2">Within 2 hours of notification</td>
+      <td className="border border-gray-400 p-2">Same day</td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Urgent</td>
+      <td className="border border-gray-400 p-2">Within 4 hours of notification</td>
+      <td className="border border-gray-400 p-2">Within 1 working day of notification</td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Medium</td>
+      <td className="border border-gray-400 p-2">Within 1 day of notification</td>
+      <td className="border border-gray-400 p-2">
+        Within 10 working days of notification. If this requires patch deployment, then immediate next sprint date
+      </td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Low</td>
+      <td className="border border-gray-400 p-2">Within 4 days of notification</td>
+      <td className="border border-gray-400 p-2">
+        Within 15 working days of notification. If a new feature development is asked for, sprint plan roadmap will be communicated.
+      </td>
+    </tr>
+  </tbody>
+</table>
+      <p className="mt-6">
+  <strong>2. INTELLECTUAL PROPERTY</strong>
+</p>
+
+<p className="ml-4">
+  <strong>2.1</strong> Both Parties agree that all Intellectual Property Rights in the Software, Documentation and ZingHR Material are retained by ZingHR, and except as set out in this Agreement, nothing in this Agreement grants the Customer any right, title or interest in the Software, Documentation or ZingHR Material.
+</p>
+
+<p className="ml-4">
+  <strong>2.2</strong> ZingHR retains all Intellectual Property Rights in modifications to the Software, regardless of whether those modifications are made on the suggestion of the Customer, or if the Customer paid fees for those modifications.
+</p>
+
+<p className="ml-4">
+  <strong>2.3</strong> All rights, title and interest in and to any Customer data and Customer systems shall remain the property of and vested in Customer. The Customer grants to ZingHR a license to exercise the Intellectual Property Rights in any Material to the extent required for ZingHR to provide the Software to the Customer, including to use and modify the Material.
+</p>
+
+<p className="ml-4">
+  <strong>2.4</strong> Unless expressly prohibited by the Customer in writing, ZingHR may refer to the Customer as its customer (using its name and logo) under this Agreement in a list of customer references, in proposals to third parties, in its annual report or on its website.
+</p>
+
+<p className="mt-6">
+  <strong>3. FEES</strong>
+</p>
+
+<p className="ml-4">
+  <strong>3.1</strong> In consideration of ZingHR carrying out and performing its obligations and the provision of the Services and the rights granted herein, Customer shall pay ZingHR the Fees as set out in Schedule 1 - Proposal.
+</p>
+<p className="mt-6">
+  <strong>4. TERM & TERMINATION</strong>
+</p>
+
+<p className="ml-4">
+  <strong>4.1 Term.</strong> This Agreement will commence on the Effective Date and shall automatically renew each year unless terminated by either Party as per the provisions of this Agreement.
+</p>
+
+{/* Termination Table */}
+<table className="w-[95%] ml-4 text-sm border border-gray-400 mt-3 mb-4">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="border border-gray-400 p-2">Cause of Termination</th>
+      <th className="border border-gray-400 p-2">Notice period</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td className="border border-gray-400 p-2">Material Breach of Agreement by either Party</td>
+      <td className="border border-gray-400 p-2">None; after 30-day rectification notice</td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Insolvency of either Party</td>
+      <td className="border border-gray-400 p-2">None; if insolvency proceedings are not dismissed within 30 days</td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Breach of Clause 2.2 by the Customer</td>
+      <td className="border border-gray-400 p-2">15 days’ notice</td>
+    </tr>
+    <tr>
+      <td className="border border-gray-400 p-2">Force Majeure by either Party</td>
+      <td className="border border-gray-400 p-2">15 days’ notice</td>
+    </tr>
+  </tbody>
+</table>
+
+<p className="ml-4">
+  <strong>4.2</strong> Upon any termination of this Agreement for any reason ZingHR will, at Customer’s request destroy or deliver to Customer all the Materials and copies thereof in ZingHR’s possessions at the date of termination.
+</p>
+
+<p className="ml-4">
+  <strong>4.3</strong> ZingHR is not required to refund any Fees paid in advance by the Customer upon termination of this Agreement.
+</p>
+
+<p className="ml-4">
+  <strong>4.4</strong> If the Agreement is terminated for any reason, the Customer will have ninety (90) days period from the date of termination to reactivate the use of the Software upon payment of a reactivation fees.
+</p>
+
+<p className="mt-6">
+  <strong>5. CONFIDENTIALITY</strong>
+</p>
+
+<p className="ml-4">
+  <strong>5.1</strong> Each of the Parties will keep any and all Confidential Information and utilise it only for the performance of its obligations under this Agreement.
+</p>
+     <p className="mt-6">
+  <strong>6. INDEMNITY AND LIABILITY</strong>
+</p>
+
+<p className="ml-4">
+  <strong>6.1</strong> Each Party acknowledges that indemnity shall be the sole monetary remedy under this Agreement. However, the Parties may be entitled to injunctive relief only in case of prevention of breach or to compel specific performance of this Clause.
+</p>
+
+<p className="ml-4">
+  <strong>6.2 ZingHR Indemnity</strong>
+</p>
+
+<p className="ml-8">
+  <strong>6.2.1</strong> ZingHR agrees to indemnify, defend and hold harmless the Customer, its directors, officers, employees, affiliates, agents and advisors, from any amount awarded in favour of the third party by the final judgment of a court of competent jurisdiction, in a claim by a third party that the use of the ZingHR Software by the Customer in accordance with this Agreement infringes the Intellectual Property Rights of that party.
+</p>
+
+<p className="ml-8">
+  <strong>6.2.2</strong> Clause 6.2.1 does not apply if a claim results from:
+  <br />(i) modifications made to the ZingHR Software by the Customer or at the Customer’s direction; or
+  <br />(ii) the Customer using the ZingHR Software other than as permitted by this Agreement or in conjunction with a third-party product not provided by ZingHR.
+</p>
+
+<p className="ml-4">
+  <strong>6.3 Limitation of liability</strong>
+</p>
+
+<p className="ml-8">
+  <strong>6.3.1</strong> Notwithstanding anything to the contrary set out under this Agreement, any liability of ZingHR for any actual loss or damage however caused (including by the negligence of ZingHR), which is actually suffered by the Customer in connection with this Agreement is limited to the Fees paid or payable in one (1) month prior to the claim.
+</p>
+
+<p className="ml-8">
+  <strong>6.3.2</strong> No Party shall be liable to the other Party (whether in contract, negligence, for breach of statutory duty or under any indemnity or otherwise) for any indirect or consequential loss; any financial loss such as loss of profits; loss of earnings; loss of business or goodwill and any type of anticipated or incidental losses.
+</p>
+
+<p className="mt-6">
+  <strong>7. GOVERNING LAW & JURISDICTION</strong>
+</p>
+
+<p className="ml-4">
+  <strong>7.1</strong> Without any conflict of law principles, this Agreement will be governed by the laws of India. If the Parties fail to resolve the dispute arising out of this Agreement within thirty (30) days, then the Parties may refer the dispute to arbitration which shall be decided in accordance with the provisions of the Indian Arbitration and Conciliation Act, 1996 with the award of such arbitrator being binding on both the Parties. If any dispute is not settled by the arbitrator, the same shall be taken for settlement in the Court of Law and shall be strictly subject to the jurisdiction of the Courts of Mumbai.
+</p>
+
+<p className="mt-4">
+  This Agreement may be executed in two or more counterparts, each of which will be considered an original, but all of which will constitute one agreement. AS WITNESS the hands of the duly authorised representatives of the Parties hereto the day and year first before written.
+</p>
+
+{/* Signature Table */}
+<table className="w-full text-sm border border-gray-300 mt-6">
+  <tbody>
+    <tr>
+      <td className="border p-4 font-semibold" colSpan="2">
+        Cnergyis Infotech India Pvt Ltd.
+      </td>
+      <td className="border p-3 font-semibold" colSpan="2">
+        
+
+      </td>
+    </tr>
+
+    <tr>
+      <td className="border p-3 font-semibold w-1/6">Signed:</td>
+      <td className="border p-3 w-1/3"></td>
+
+      <td className="border p-3 font-semibold w-1/6">Signed:</td>
+      <td className="border p-3 w-1/3"></td>
+    </tr>
+
+    <tr>
+      <td className="border p-3 font-semibold">Name:</td>
+      <td className="border p-3">Ravi Bajaj</td>
+
+      <td className="border p-3 font-semibold">Name:</td>
+      <td className="border p-3"></td>
+    </tr>
+
+    <tr>
+      <td className="border p-3 font-semibold">Title:</td>
+      <td className="border p-3">Director</td>
+
+      <td className="border p-3 font-semibold">Title:</td>
+      <td className="border p-3"></td>
+    </tr>
+
+    <tr>
+      <td className="border p-3 font-semibold">Date:</td>
+      <td className="border p-3"></td>
+
+      <td className="border p-3 font-semibold">Date:</td>
+      <td className="border p-3"></td>
+    </tr>
+  </tbody>
+</table>
     </div>
   </section>
 )}
-
-
-        {/* --- Footer --- */}
-        
-      </main>
+       {/* --- Footer --- */}
+            </main>
 <div className="pt-20 flex justify-center no-print">
   <PageBreadcrumb items={breadcrumbItems} currentStep={4} />
 </div>

@@ -42,7 +42,7 @@ exports.getModuleById = async (req, res) => {
 exports.createModule = async (req, res) => {
   try {
     await poolConnect;
-    const { modName, modDesc, modFeatureList, modObjective } = req.body;
+    const { modName, modDesc, modFeatureList, modObjective, PriceINR, PriceUSD, pkgPro, pkgProPlus, pkgGrowth } = req.body;
 
     if (!modName || !modDesc) {
       return res.status(400).json({ message: 'Module name and description are required' });
@@ -53,9 +53,16 @@ exports.createModule = async (req, res) => {
       .input('modDesc', modDesc)
       .input('modFeatureList', modFeatureList || '')
       .input('modObjective', modObjective || '')
+      .input('PriceINR', PriceINR || 0)
+.input('PriceUSD', PriceUSD || (PriceINR ? PriceINR / 83 : 0))
+.input('pkgPro', pkgPro || 'Not included')
+.input('pkgProPlus', pkgProPlus || 'Not included')
+.input('pkgGrowth', pkgGrowth || 'Not included')
       .query(`
-        INSERT INTO zhrmodulelist (modName, modDesc, modFeatureList, modObjective)
-        VALUES (@modName, @modDesc, @modFeatureList, @modObjective);
+       INSERT INTO zhrmodulelist 
+(modName, modDesc, modFeatureList, modObjective, PriceINR, PriceUSD, pkgPro, pkgProPlus, pkgGrowth)
+VALUES 
+(@modName, @modDesc, @modFeatureList, @modObjective, @PriceINR, @PriceUSD, @pkgPro, @pkgProPlus, @pkgGrowth);
         SELECT SCOPE_IDENTITY() AS insertId;
       `);
 
@@ -67,11 +74,12 @@ exports.createModule = async (req, res) => {
 };
 
 // ✅ Update single module
+// ✅ Update single module
 exports.updateModule = async (req, res) => {
   try {
     await poolConnect;
     const { id } = req.params;
-    const { modName, modDesc, modFeatureList, modObjective } = req.body;
+    const { modName, modDesc, modFeatureList, modObjective, PriceINR, PriceUSD } = req.body;
 
     const existing = await pool.request()
       .input('id', id)
@@ -82,17 +90,21 @@ exports.updateModule = async (req, res) => {
     }
 
     await pool.request()
-      .input('modName', modName)
-      .input('modDesc', modDesc)
-      .input('modFeatureList', modFeatureList)
-      .input('modObjective', modObjective)
+      .input('modName', modName ?? existing.recordset[0].modName)
+      .input('modDesc', modDesc ?? existing.recordset[0].modDesc)
+      .input('modFeatureList', modFeatureList ?? existing.recordset[0].modFeatureList)
+      .input('modObjective', modObjective ?? existing.recordset[0].modObjective)
+      .input('PriceINR', PriceINR ?? existing.recordset[0].PriceINR)
+      .input('PriceUSD', PriceUSD ?? existing.recordset[0].PriceUSD)
       .input('id', id)
       .query(`
         UPDATE zhrmodulelist
         SET modName=@modName,
             modDesc=@modDesc,
             modFeatureList=@modFeatureList,
-            modObjective=@modObjective
+            modObjective=@modObjective,
+            PriceINR=@PriceINR,
+            PriceUSD=@PriceUSD
         WHERE modId=@id
       `);
 
@@ -102,7 +114,6 @@ exports.updateModule = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 // ✅ Delete a module
 exports.deleteModule = async (req, res) => {
   try {

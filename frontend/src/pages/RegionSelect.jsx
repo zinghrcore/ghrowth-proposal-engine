@@ -19,6 +19,20 @@ const breadcrumbItems = [
   { label: "Contacts", path: "/contact-information" },
   { label: "Proposal", path: "/proposal" }
 ];
+const groupedRegions = regions.reduce((acc, region) => {
+  if (!acc[region.name]) {
+    acc[region.name] = {
+      name: region.name,
+      pricing: region.pricing,
+      currencies: [],
+    };
+  }
+
+  acc[region.name].currencies.push(region);
+  return acc;
+}, {});
+
+const regionList = Object.values(groupedRegions);
 React.useEffect(() => {
   const fetchRegions = async () => {
     try {
@@ -102,25 +116,65 @@ console.log("Regions:", regions);
               className="w-32 p-2 border rounded"
               placeholder="Currency"
             />
+            <input
+  type="text"
+  value={region.currencySymbol || ""}
+  onChange={(e) => {
+    const updated = [...editRegions];
+    updated[index].currencySymbol = e.target.value;
+    setEditRegions(updated);
+  }}
+  className="w-20 p-2 border rounded"
+  placeholder="$ / ₹"
+/>
+            <input
+  type="number"
+  value={region.conversionBaseINR || 10}
+  onChange={(e) => {
+    const updated = [...editRegions];
+    updated[index].conversionBaseINR = e.target.value;
+    setEditRegions(updated);
+  }}
+  className="w-28 p-2 border rounded"
+  placeholder="INR Base"
+/>
+
+<input
+  type="number"
+  value={region.conversionValue || ""}
+  onChange={(e) => {
+    const updated = [...editRegions];
+    updated[index].conversionValue = e.target.value;
+    setEditRegions(updated);
+  }}
+  className="w-36 p-2 border rounded"
+  placeholder={`10 INR in ${region.currency || "currency"}`}
+/>
             <button
   onClick={async () => {
-    try {
-      const regionToDelete = editRegions[index];
+  try {
+    const regionToDelete = editRegions[index];
 
-      console.log("Deleting region id:", regionToDelete.id); // debug line
-
-      await axios.delete(`${BASE_URL}/api/regions/${regionToDelete.id}`);
-
-      // Update state
+    // ✅ If new unsaved row, just remove from UI
+    if (!regionToDelete.id) {
       const updated = editRegions.filter((_, i) => i !== index);
       setEditRegions(updated);
-      setRegions(updated);
-      alert(`Region "${regionToDelete.name}" deleted successfully`);
-    } catch (err) {
-      console.error("Error deleting region:", err);
-      alert("Failed to delete region");
+      return;
     }
-  }}
+
+    // ✅ If saved row, delete from DB
+    await axios.delete(`${BASE_URL}/api/regions/${regionToDelete.id}`);
+
+    const updated = editRegions.filter((_, i) => i !== index);
+    setEditRegions(updated);
+    setRegions(updated);
+
+    alert(`Region "${regionToDelete.name}" deleted successfully`);
+  } catch (err) {
+    console.error("Error deleting region:", err);
+    alert("Failed to delete region");
+  }
+}}
   className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition"
 >
   Delete
@@ -130,7 +184,19 @@ console.log("Regions:", regions);
         ))}
 
         <button
-          onClick={() => setEditRegions([...editRegions, { name: "", currency: "", pricing: "" }])}
+          onClick={() =>
+  setEditRegions([
+    ...editRegions,
+    {
+      name: "",
+      currency: "",
+      currencySymbol: "",
+      pricing: "",
+      conversionBaseINR: 10,
+      conversionValue: "",
+    },
+  ])
+}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition mt-2"
         >
           + Add Region
@@ -187,49 +253,77 @@ console.log("Regions:", regions);
   </div>
 )}
        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-  {regions.map((region) => (
+  {regionList.map((regionGroup) => (
   <div
-    key={region.name}
+    key={regionGroup.name}
     className={`p-6 rounded-3xl border-2 transition-all cursor-pointer ${
-      selectedRegion?.name === region.name
+      selectedRegion?.name === regionGroup.name
         ? "border-blue-600 shadow-xl bg-blue-50"
         : "border-blue-200 hover:border-blue-400 hover:shadow-md"
     } flex flex-col items-center justify-between gap-4`}
-    onClick={() => setSelectedRegion(region)}
+    onClick={() => setSelectedRegion(regionGroup)}
   >
-    <h2 className="text-xl font-bold text-blue-900">{region.name}</h2>
+    <h2 className="text-xl font-bold text-blue-900">{regionGroup.name}</h2>
+
     <p className="text-blue-700 text-sm md:text-base text-center">
-      {region.pricing || `Pricing in ${region.currency}`}
+      Available Currencies:{" "}
+      {regionGroup.currencies.map((c) => c.currency).join(", ")}
     </p>
-          {/* Show Existing/New buttons only for the selected region */}
-      {selectedRegion?.name === region.name && (
-        <div className="mt-4 flex justify-center gap-4">
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // prevent card click
-              localStorage.setItem("region", JSON.stringify(selectedRegion));
-              localStorage.setItem("mode", "existing");
-              navigate("/dashboard?mode=existing");
-            }}
-            className="px-5 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300 transition shadow-sm hover:shadow-md"
-          >
-            Existing
-          </button>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              localStorage.setItem("region", JSON.stringify(selectedRegion));
-              localStorage.setItem("mode", "new");
-              navigate("/dashboard?mode=new");
-            }}
-            className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition shadow-sm hover:shadow-md"
-          >
-            New
-          </button>
+    {selectedRegion?.name === regionGroup.name && (
+      <div className="mt-4 w-full">
+        <p className="text-sm font-semibold text-blue-900 mb-2">
+          Select Currency
+        </p>
+
+        <div className="flex flex-wrap justify-center gap-3 mb-4">
+          {regionGroup.currencies.map((currencyOption) => (
+            <button
+              key={currencyOption.id || currencyOption.currency}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedRegion(currencyOption);
+              }}
+              className={`px-4 py-2 rounded-xl font-semibold border ${
+                selectedRegion?.currency === currencyOption.currency
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-blue-800 border-blue-300 hover:bg-blue-50"
+              }`}
+            >
+              {currencyOption.currency}
+            </button>
+          ))}
         </div>
-      )}
 
+        {selectedRegion?.currency && (
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                localStorage.setItem("region", JSON.stringify(selectedRegion));
+                localStorage.setItem("mode", "existing");
+                navigate("/dashboard?mode=existing");
+              }}
+              className="px-5 py-2 bg-gray-200 text-gray-800 font-semibold rounded-xl hover:bg-gray-300 transition shadow-sm hover:shadow-md"
+            >
+              Existing
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                localStorage.setItem("region", JSON.stringify(selectedRegion));
+                localStorage.setItem("mode", "new");
+                navigate("/dashboard?mode=new");
+              }}
+              className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition shadow-sm hover:shadow-md"
+            >
+              New
+            </button>
+          </div>
+        )}
+      </div>
+    )}
   </div>
 ))}
 </div>

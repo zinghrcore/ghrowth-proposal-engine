@@ -43,11 +43,7 @@ const Login = () => {
       setPassword("");
       showToast("Login successful!", "success");
 
-      if (user.role === "approver") {
-        navigate("/dashboard"); // <-- Approver goes to dashboard
-      } else {
-        navigate("/region-select"); // <-- Normal user
-      }
+      navigate("/region-select");
     } catch (err) {
       console.error(err);
       showToast(err.response?.data?.message || "Login failed.", "error");

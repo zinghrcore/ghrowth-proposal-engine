@@ -183,6 +183,9 @@ const handleApplyDiscount = () => {
   else if (completionPercent >= 80) percent = 3;
   else if (completionPercent >= 70) percent = 2;
 
+  const isCompleted = completionPercent >= 70;
+
+  // old object if you still want to keep it
   localStorage.setItem(
     "readinessDiscount",
     JSON.stringify({
@@ -192,6 +195,12 @@ const handleApplyDiscount = () => {
     })
   );
 
+  // important keys used in ClientInformation page
+  localStorage.setItem("implementationReadinessScore", completionPercent.toString());
+  localStorage.setItem("implementationReadinessDiscount", percent.toString());
+  localStorage.setItem("implementationReadinessCompleted", isCompleted ? "true" : "false");
+  localStorage.setItem("readinessAppliedThisSession", "true");
+
   alert(
     percent > 0
       ? `✅ ${percent}% Implementation Discount Applied!`
@@ -199,7 +208,7 @@ const handleApplyDiscount = () => {
   );
 
   localStorage.setItem("skipModuleQuestionOnce", "true");
-navigate(-1);
+  navigate(-1);
 };
 
 {/*const fileToBase64 = (file) =>

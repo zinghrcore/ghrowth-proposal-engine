@@ -15,6 +15,11 @@ const ClientInformation = () => {
     name: "India",
     currency: "INR",
   };
+  const conversionRate =
+  regionInfo?.conversionValue && regionInfo?.conversionBaseINR
+    ? Number(regionInfo.conversionValue) /
+      Number(regionInfo.conversionBaseINR)
+    : 1 / 83; // fallback
   const savedModules = React.useMemo(() => {
   const data = localStorage.getItem("selectedModules");
   return data ? JSON.parse(data) : null;
@@ -22,7 +27,12 @@ const ClientInformation = () => {
   const source = localStorage.getItem("source");
   const isExploreModules = source === "exploreModules";
   const currencySymbol = regionInfo.currency === "USD" ? "$" : "₹";
-  const INR_TO_USD_RATE = 1.94 / 175;
+  const [isSlabPricing, setIsSlabPricing] = useState(false);
+
+const [slabs, setSlabs] = useState([
+  { from: 0, to: 1000, rate: 0 },
+]);
+  //const INR_TO_USD_RATE = 1.94 / 175;
   const planMinEmployees = {
     pro: 1000,
     proplus: 600,
@@ -73,6 +83,36 @@ const [blueCollar, setBlueCollar] = useState(savedDraft.blueCollar || 0);
 const [contract, setContract] = useState(savedDraft.contract || 0);
 const [addPayroll, setAddPayroll] = useState(savedDraft.addPayroll || false);
 const [companyName, setCompanyName] = useState(savedDraft.companyName || "");
+const [isReadinessCompleted, setIsReadinessCompleted] = useState(false);
+useEffect(() => {
+  const readinessOpened =
+    localStorage.getItem("readinessOpenedForCurrentProposal") === "true";
+
+  if (!readinessOpened) {
+    localStorage.removeItem("implementationReadinessScore");
+    localStorage.removeItem("implementationReadinessDiscount");
+    localStorage.removeItem("implementationReadinessCompleted");
+    localStorage.removeItem("readinessAppliedThisSession");
+
+    setReadinessScore(0);
+    setReadinessDiscount(0);
+    setIsReadinessCompleted(false);
+  }
+}, []);
+useEffect(() => {
+  const readinessApplied =
+    localStorage.getItem("readinessAppliedThisSession") === "true";
+
+  if (!readinessApplied) {
+    localStorage.removeItem("implementationReadinessScore");
+    localStorage.removeItem("implementationReadinessDiscount");
+    localStorage.removeItem("implementationReadinessCompleted");
+
+    setReadinessScore(0);
+    setReadinessDiscount(0);
+    setIsReadinessCompleted(false);
+  }
+}, []);
 const [discountCode, setDiscountCode] = useState(savedDraft.discountCode || "");
 const [billingFrequency, setBillingFrequency] = useState(
   savedDraft.billingFrequency || "Monthly"
@@ -100,20 +140,61 @@ const [billingFrequency, setBillingFrequency] = useState(
     firstYearTotal: 0,
     implementationFee: 0,
   });
-  const [readinessDiscount, setReadinessDiscount] = useState(
-  Number(localStorage.getItem("implementationReadinessDiscount")) || 0
+  const readinessCompletedFromStorage =
+  localStorage.getItem("implementationReadinessCompleted") === "true";
+
+const [readinessDiscount, setReadinessDiscount] = useState(
+  readinessCompletedFromStorage
+    ? Number(localStorage.getItem("implementationReadinessDiscount")) || 0
+    : 0
 );
+
 const [readinessScore, setReadinessScore] = useState(
-  Number(localStorage.getItem("implementationReadinessScore")) || 0
+  readinessCompletedFromStorage
+    ? Number(localStorage.getItem("implementationReadinessScore")) || 0
+    : 0
 );
 useEffect(() => {
-  const savedDiscount =
-    Number(localStorage.getItem("implementationReadinessDiscount")) || 0;
-  const savedScore =
-    Number(localStorage.getItem("implementationReadinessScore")) || 0;
+  const refreshReadiness = () => {
+    const savedCompleted =
+      localStorage.getItem("implementationReadinessCompleted") === "true";
 
-  setReadinessDiscount(savedDiscount);
-  setReadinessScore(savedScore);
+    const savedDiscount = savedCompleted
+      ? Number(localStorage.getItem("implementationReadinessDiscount")) || 0
+      : 0;
+
+    const savedScore = savedCompleted
+      ? Number(localStorage.getItem("implementationReadinessScore")) || 0
+      : 0;
+
+    setReadinessDiscount(savedDiscount);
+    setReadinessScore(savedScore);
+    setIsReadinessCompleted(savedCompleted);
+  };
+
+  refreshReadiness();
+
+  // 🔥 this is key → runs when user comes back
+  window.addEventListener("pageshow", refreshReadiness);
+
+  return () => window.removeEventListener("pageshow", refreshReadiness);
+}, []);
+useEffect(() => {
+  const handleFocus = () => {
+    const savedDiscount =
+      Number(localStorage.getItem("implementationReadinessDiscount")) || 0;
+    const savedScore =
+      Number(localStorage.getItem("implementationReadinessScore")) || 0;
+    const savedCompleted =
+      localStorage.getItem("implementationReadinessCompleted") === "true";
+
+    setReadinessDiscount(savedDiscount);
+    setReadinessScore(savedScore);
+    setIsReadinessCompleted(savedCompleted);
+  };
+
+  window.addEventListener("focus", handleFocus);
+  return () => window.removeEventListener("focus", handleFocus);
 }, []);
 useEffect(() => {
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -147,13 +228,51 @@ useEffect(() => {
       return newModules;
     });
   }, [selectedPackage, modules, savedModules, source]);
+  const getSlabBreakdown = () => {
+  let remaining = totalEmployees;
+  const billingDiscount = getBillingFrequencyDiscount();
+
+  return slabs
+    .map((slab) => {
+      if (remaining <= 0) return null;
+
+      const from = Number(slab.from || 0);
+      const to = Number(slab.to || 0);
+      const rate = Number(slab.rate || 0);
+
+      const slabSize = to - from;
+      const employeeCount = Math.min(remaining, slabSize);
+
+      if (employeeCount <= 0) return null;
+
+      const finalRate = rate - (rate * billingDiscount) / 100;
+      const amount = employeeCount * finalRate;
+
+      remaining -= employeeCount;
+
+      return {
+        range: `${from}-${from + employeeCount}`,
+        rate,
+        finalRate,
+        employeeCount,
+        amount,
+      };
+    })
+    .filter(Boolean);
+};
+
+const calculateSlabPricing = () => {
+  return getSlabBreakdown().reduce((sum, row) => sum + row.amount, 0);
+};
   const calculateRate = (packageName) => {
     if (source === "exploreModules" && savedModules?.modules?.length > 0) {
       const sumINR = savedModules.modules.reduce(
         (acc, mod) => acc + parseFloat(mod.PriceINR || 0),
         0
       );
-      return regionInfo.currency === "USD" ? +(sumINR * INR_TO_USD_RATE).toFixed(2) : sumINR;
+      return regionInfo.currency === "USD"
+  ? +(sumINR * conversionRate).toFixed(2)
+  : sumINR;
     }
     if (!modules.length) return 0;
     let columnKey = "";
@@ -168,7 +287,9 @@ useEffect(() => {
       (acc, mod) => acc + parseFloat(mod.PriceINR || 0),
       0
     );
-    return regionInfo.currency === "USD" ? +(sumINR * INR_TO_USD_RATE).toFixed(2) : sumINR;
+    return regionInfo.currency === "USD"
+  ? +(sumINR * conversionRate).toFixed(2)
+  : sumINR;
   };
   const calculateDynamicRate = () => {
     if (!modulesAreDifferent) return originalRate;
@@ -187,7 +308,9 @@ useEffect(() => {
         rate += price;
       }
     });
-    return regionInfo.currency === "USD" ? +(rate * INR_TO_USD_RATE).toFixed(2) : rate;
+    return regionInfo.currency === "USD"
+  ? +(rate * conversionRate).toFixed(2)
+  : rate;
   };
   const calculateMonthlyPlatform = () => {
     let total = 0;
@@ -305,7 +428,11 @@ useEffect(() => {
   const monthlyPlatform = modulesAreDifferent ? calculateMonthlyPlatform() : ratePEPM * effectiveEmployees;
   let payrollFee = 0;
   if (addPayroll) {
-    const regionName = regionInfo.name.toLowerCase();
+    const regionName = regionInfo.name.toLowerCase();const monthlyPlatform = isSlabPricing
+  ? calculateSlabPricing()
+  : modulesAreDifferent
+  ? calculateMonthlyPlatform()
+  : ratePEPM * effectiveEmployees;
     if (
       regionName.includes("middle east") || regionName.includes("africa") || regionName.includes("south east asia")
     ) {
@@ -325,7 +452,11 @@ useEffect(() => {
     const billingDiscount = getBillingFrequencyDiscount();
     const baseRate = discountedRate || originalRate;
     const finalRate = baseRate - (baseRate * billingDiscount) / 100;
-    const monthlyPlatform = modulesAreDifferent ? calculateMonthlyPlatform() : finalRate * effectiveEmployees;
+    const monthlyPlatform = isSlabPricing
+  ? calculateSlabPricing()
+  : modulesAreDifferent
+  ? calculateMonthlyPlatform()
+  : finalRate * effectiveEmployees;
     const payrollFee = addPayroll ? regionInfo.name.toLowerCase().includes("middle east") || regionInfo.name.toLowerCase().includes("africa") || regionInfo.name.toLowerCase().includes("south east asia") ? 165.06 : 25000 : 0;
     const totalMonthly = monthlyPlatform + payrollFee;
     const firstYearTotal = totalMonthly * 12;
@@ -370,7 +501,9 @@ let newImplementationFee = applyAdditionalImplementationDiscount(baseImplementat
   originalImplementationFee,
   regionInfo.name,
   billingFrequency,
-  readinessDiscount
+  readinessDiscount,
+  isSlabPricing,
+slabs
 ]);
 useEffect(() => {
   localStorage.setItem(
@@ -486,11 +619,18 @@ const applyDiscount = async () => {
   }
 };  
 const handleContinue = async () => {
+  if (!isReadinessCompleted) {
+  setPopupMessage("ZingHR Implementation Readiness is mandatory to fill.");
+  setShowPopup(true);
+  return;
+}
   if (!isExploreModules && !isValidTotal) {
   alert(`Total employees must be at least ${minEmployees}`);
   return;
 }
+
   try {
+    localStorage.setItem("source", source);
     const payload = {
       custId: `CUST-${Date.now()}`,
       custName: clientName,
@@ -547,6 +687,9 @@ if (discountPercent > 0) {
   "clientInfo",
   JSON.stringify({
     ...payload,
+    billingFrequency, // ✅ ADD THIS
+    isSlabPricing,
+    slabs,
     readinessScore,
     readinessDiscount,
     priceDetails: {
@@ -567,7 +710,13 @@ if (discountPercent > 0) {
     );
     console.log("Client Info Saved:", res.data);
     localStorage.removeItem("clientInformationDraft");
-    navigate("/contact-information");
+localStorage.removeItem("readinessOpenedForCurrentProposal");
+localStorage.removeItem("readinessAppliedThisSession");
+localStorage.removeItem("implementationReadinessScore");
+localStorage.removeItem("implementationReadinessDiscount");
+localStorage.removeItem("implementationReadinessCompleted");
+
+navigate("/contact-information");
   } catch (error) {
     console.error("Error saving client info:", error);
     alert("Failed to save client info. Check console for details.");
@@ -725,7 +874,83 @@ return (
 )}
           </div>
         </div>
+{/* Slab Pricing */}
+<div className="bg-white shadow-md rounded-2xl p-6 border border-gray-200 mt-6">
+  <h2 className="text-lg font-bold text-blue-900 mb-4">
+    📊 Slab-wise Pricing
+  </h2>
 
+  <label className="flex items-center gap-2 mb-4">
+    <input
+      type="checkbox"
+      checked={isSlabPricing}
+      onChange={(e) => setIsSlabPricing(e.target.checked)}
+    />
+    Is slab-wise pricing applicable?
+  </label>
+
+  {isSlabPricing && (
+    <div className="space-y-3">
+      {slabs.map((slab, index) => (
+        <div key={index} className="flex gap-3 items-center">
+          <input
+            type="number"
+            placeholder="From"
+            value={slab.from}
+            onChange={(e) => {
+              const updated = [...slabs];
+              updated[index].from = Number(e.target.value);
+              setSlabs(updated);
+            }}
+            className="w-24 border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="To"
+            value={slab.to}
+            onChange={(e) => {
+              const updated = [...slabs];
+              updated[index].to = Number(e.target.value);
+              setSlabs(updated);
+            }}
+            className="w-24 border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="Rate (PEPM)"
+            value={slab.rate}
+            onChange={(e) => {
+              const updated = [...slabs];
+              updated[index].rate = Number(e.target.value);
+              setSlabs(updated);
+            }}
+            className="w-32 border p-2 rounded"
+          />
+
+          <button
+            onClick={() =>
+              setSlabs(slabs.filter((_, i) => i !== index))
+            }
+            className="text-red-500"
+          >
+            ❌
+          </button>
+        </div>
+      ))}
+
+      <button
+        onClick={() =>
+          setSlabs([...slabs, { from: 0, to: 0, rate: 0 }])
+        }
+        className="px-3 py-1 bg-blue-500 text-white rounded"
+      >
+        + Add Slab
+      </button>
+    </div>
+  )}
+</div>
         
         {/* Module Assignment UI */}
         {modulesAreDifferent && modules?.length > 0 && (
@@ -822,10 +1047,15 @@ return (
         ZingHR Implementation Readiness
       </h2>
       <p className="text-sm text-gray-600 mt-1">
-        Complete the readiness checklist to unlock implementation discount.
-      </p>
+  ZingHR Implementation Readiness is mandatory to fill before continuing.
+</p>
+{!isReadinessCompleted && (
+  <p className="text-sm text-red-600 font-medium mt-2">
+    ZingHR Implementation Readiness is mandatory to fill.
+  </p>
+)}
 
-      {(readinessScore > 0 || readinessDiscount > 0) && (
+      {isReadinessCompleted && (readinessScore > 0 || readinessDiscount > 0) && (
         <div className="mt-3 flex flex-wrap gap-3">
           <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
             Readiness Score: {readinessScore}%
@@ -856,7 +1086,8 @@ return (
       moduleAssignments,
     })
   );
-  navigate("/implementation-readiness");
+  localStorage.setItem("readinessOpenedForCurrentProposal", "true");
+navigate("/implementation-readiness");
 }}
       className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold shadow-sm"
     >
@@ -913,91 +1144,139 @@ return (
 
     <span className="font-medium">{freq}</span>
 
-    <span
-      className={`text-xs font-semibold ${
-        billingFrequency === freq ? "text-white" : "text-green-600"
-      }`}
-    >
-      {currencySymbol}
-      {Number(getRateForFrequency(freq)).toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}
-    </span>
+    {!isSlabPricing && (
+  <span
+    className={`text-xs font-semibold ${
+      billingFrequency === freq ? "text-white" : "text-green-600"
+    }`}
+  >
+    {currencySymbol}
+    {Number(getRateForFrequency(freq)).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}
+  </span>
+)}  
   </label>
 ))}
               </div>
             </div>
             <h2 className="text-lg font-bold mb-4">💰 Price Preview</h2>
             <div className="divide-y divide-blue-800"> 
-              <div className="flex justify-between items-center py-2">
-                <span className="font-medium">
-                  Rate (PEPM) ({billingFrequency})
-                </span>
-                <div className="text-green-600 text-sm">
-                  Billing Frequency Price Optimization: {getBillingFrequencyDiscount()}%
-                </div>
-                <div className="flex items-center gap-1">
-                  <span>{currencySymbol}</span>
-                  <input
-                    type="text"
-                    value={
-  getSelectedFrequencyRate() === 0
-    ? ""
-    : Number(getSelectedFrequencyRate()).toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-}
-                    onChange={(e) => {
-  const val = e.target.value.replace(/,/g, "");
-  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-    setPriceDetails((prev) => ({
-      ...prev,
-      rate: val,
-      userEditedRate: true,
-    }));
-  }
-}}
-                   onBlur={(e) => {
-  const rawValue = e.target.value.replace(/,/g, "");
-  const val = parseFloat(rawValue);
+              {!isSlabPricing && (
+  <div className="flex justify-between items-center py-2">
+    <span className="font-medium">
+      Rate (PEPM) ({billingFrequency})
+    </span>
+    <div className="text-green-600 text-sm">
+      Billing Frequency Price Optimization: {getBillingFrequencyDiscount()}%
+    </div>
+    <div className="flex items-center gap-1">
+      <span>{currencySymbol}</span>
+      <input
+        type="text"
+        value={
+          getSelectedFrequencyRate() === 0
+            ? ""
+            : Number(getSelectedFrequencyRate()).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+        }
+        onChange={(e) => {
+          const val = e.target.value.replace(/,/g, "");
+          if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+            setPriceDetails((prev) => ({
+              ...prev,
+              rate: val,
+              userEditedRate: true,
+            }));
+          }
+        }}
+        onBlur={(e) => {
+          const rawValue = e.target.value.replace(/,/g, "");
+          const val = parseFloat(rawValue);
 
-  if (isNaN(val) || rawValue.trim() === "") {
-    setPriceDetails((prev) => ({
-      ...prev,
-      rate: minRate,
-    }));
-    return;
-  }
+          if (isNaN(val) || rawValue.trim() === "") {
+            setPriceDetails((prev) => ({
+              ...prev,
+              rate: minRate,
+            }));
+            return;
+          }
 
-  if (val < minRate) {
-    setPopupMessage(`Rate (PEPM) cannot be less than ₹${minRate}`);
-    setShowPopup(true);
-    setPriceDetails((prev) => ({
-      ...prev,
-      rate: minRate,
-    }));
-    return;
-  }
+          if (val < minRate) {
+            setPopupMessage(`Rate (PEPM) cannot be less than ${currencySymbol}${minRate}`);
+            setShowPopup(true);
+            setPriceDetails((prev) => ({
+              ...prev,
+              rate: minRate,
+            }));
+            return;
+          }
 
-  setPriceDetails((prev) => ({
-    ...prev,
-    rate: val,
-    userEditedRate: true,
-  }));
-}}
-                    placeholder="Enter Rate"
-                    className="w-28 text-right text-blue-900 font-semibold border border-blue-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-400 outline-none"
-                  />
-                </div>
-              </div>
+          setPriceDetails((prev) => ({
+            ...prev,
+            rate: val,
+            userEditedRate: true,
+          }));
+        }}
+        placeholder="Enter Rate"
+        className="w-28 text-right text-blue-900 font-semibold border border-blue-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-400 outline-none"
+      />
+    </div>
+  </div>
+)}
               <div className="flex justify-between py-2">
                 <span className="font-medium">Effective Employees</span>
                 <span className="font-semibold">
                   {priceDetails.effectiveEmployees.toLocaleString()}
                 </span>
               </div>
+              {isSlabPricing && (
+  <div className="mt-4 bg-white text-black p-4 rounded-lg">
+    <h3 className="font-bold mb-2">Slab Breakdown</h3>
+
+    <table className="w-full text-sm border">
+      <thead>
+        <tr className="bg-gray-200">
+          <th className="p-2">Range</th>
+          <th className="p-2">Rate (PEPM)</th>
+          <th className="p-2">Employees</th>
+          <th className="p-2">Amount</th>
+        </tr>
+      </thead>
+
+      <tbody>
+  {getSlabBreakdown().map((row, index) => {
+    return (
+      <tr key={index}>
+        <td className="p-2">{row.range}</td>
+
+        <td className="p-2">
+          {currencySymbol}
+          {Number(row.finalRate).toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </td>
+
+        <td className="p-2">{row.employeeCount}</td>
+
+        <td className="p-2">
+          {currencySymbol}
+          {row.amount.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+    </table>
+  </div>
+)}
               <div className="flex justify-between py-2">
                 <span className="font-medium">Monthly Platform</span>
                 <span className="font-semibold">
@@ -1107,16 +1386,16 @@ return (
             Back
           </button>
           <button
-            onClick={handleContinue}
-            disabled={!isExploreModules && !isValidTotal}
-            className={`px-6 py-3 rounded-xl font-semibold transition ${
-              isValidTotal
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "bg-gray-300 text-gray-600 cursor-not-allowed"
-            }`}
-          >
-             Continue
-          </button>
+  onClick={handleContinue}
+  disabled={!isReadinessCompleted || (!isExploreModules && !isValidTotal)}
+  className={`px-6 py-3 rounded-xl font-semibold transition ${
+    isReadinessCompleted && (isExploreModules || isValidTotal)
+      ? "bg-blue-600 text-white hover:bg-blue-700"
+      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+  }`}
+>
+  Continue
+</button>
         </div>
       </div>
     </main>

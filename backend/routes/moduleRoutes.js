@@ -7,7 +7,7 @@ router.get('/summary', moduleController.getModuleCounts);
 
 // ✅ Get feature comparison (before /:id as well)
 router.get('/feature-comparison', moduleController.getFeatureComparison);
-
+router.put('/:id', moduleController.updateModule);
 // ✅ Get all modules
 router.get('/', moduleController.getAllModules);
 

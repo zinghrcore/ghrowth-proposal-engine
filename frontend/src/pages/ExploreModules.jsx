@@ -9,7 +9,12 @@ const BASE_URL = process.env.REACT_APP_API_URL;
 const ExploreModules = () => {
   const [modules, setModules] = useState([]);
   const region = JSON.parse(localStorage.getItem("region"));
+  const currencySymbol = region?.currencySymbol || "₹";
+  const conversionRate =
+  Number(region?.conversionValue || 0) /
+  Number(region?.conversionBaseINR || 1);
   const user = JSON.parse(localStorage.getItem("user"));
+  const isAdmin = user?.role === "admin";
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +31,26 @@ const ExploreModules = () => {
     };
     fetchModules();
   }, []);
+  const [showModal, setShowModal] = useState(false);
+const [newModule, setNewModule] = useState({
+  modName: "",
+  modDesc: "",
+  modFeatureList: "",
+  modObjective: "",
+  PriceINR: "",
+  pkgPro: false,
+  pkgProPlus: false,
+  pkgGrowth: false
+});
+const existingCategories = [
+  ...new Set(
+    modules
+      .map((m) => m.modObjective)
+      .filter((category) => category && category.trim() !== "")
+  ),
+];
+
+const [categoryMode, setCategoryMode] = useState("existing");
 
   // ✅ Handle checkbox toggle
   const handleSelectModule = (index, checked) => {
@@ -47,9 +72,9 @@ const ExploreModules = () => {
   // Sum module prices
   const totalRateINR = selected.reduce((sum, m) => sum + (m.PriceINR || 0), 0);
   const totalRateUSD = selected.reduce(
-    (sum, m) => sum + ((m.PriceUSD) || ((m.PriceINR || 0) / 83)),
-    0
-  );
+  (sum, m) => sum + ((Number(m.PriceINR) || 0) * conversionRate),
+  0
+);
 
   // Save selected modules in localStorage
   localStorage.setItem(
@@ -65,13 +90,82 @@ const ExploreModules = () => {
   // Navigate to Client Info page
   navigate("/client-info");
 };
-
+const [editingModule, setEditingModule] = useState(null);
+const [newPrice, setNewPrice] = useState("");
   // ✅ Handle Reset button
   const handleReset = () => {
     const resetModules = modules.map((m) => ({ ...m, isChecked: false }));
     setModules(resetModules);
   };
+const handleEdit = (mod) => {
+  setEditingModule(mod.modId);
+  setNewPrice(mod.PriceINR || "");
+};
+const handleDelete = async (id) => {
+  if (!window.confirm("Are you sure?")) return;
 
+  try {
+    await axios.delete(`${BASE_URL}/api/modules/${id}`);
+    alert("Deleted successfully");
+
+    setModules(modules.filter((m) => m.modId !== id));
+  } catch (err) {
+    console.error(err);
+    alert("Error deleting module");
+  }
+};
+const handleSave = async (id) => {
+  try {
+    await axios.put(`${BASE_URL}/api/modules/${id}`, {
+      PriceINR: newPrice,
+    });
+
+    alert("Price updated successfully");
+
+    setEditingModule(null);
+
+    const res = await axios.get(`${BASE_URL}/api/modules`);
+    setModules(res.data);
+  } catch (err) {
+    console.error(err);
+    alert("Error updating price");
+  }
+};
+const handleAddModule = async () => {
+  try {
+    await axios.post(`${BASE_URL}/api/modules`, {
+  ...newModule,
+  pkgPro: newModule.pkgPro ? "Included" : "Not included",
+  pkgProPlus: newModule.pkgProPlus ? "Included" : "Not included",
+  pkgGrowth: newModule.pkgGrowth ? "Included" : "Not included",
+});
+
+    alert("Module added successfully");
+
+    setShowModal(false);
+
+    // refresh list
+    const res = await axios.get(`${BASE_URL}/api/modules`);
+    setModules(res.data);
+
+    // reset form
+    setNewModule({
+  modName: "",
+  modDesc: "",
+  modFeatureList: "",
+  modObjective: "",
+  PriceINR: "",
+  pkgPro: false,
+  pkgProPlus: false,
+  pkgGrowth: false
+});
+setCategoryMode("existing");
+
+  } catch (err) {
+    console.error(err);
+    alert("Error adding module");
+  }
+};
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 font-sans text-black">
       <Navbar user={user} />
@@ -82,6 +176,16 @@ const ExploreModules = () => {
         </h1>
 
         <div className="bg-white shadow-2xl rounded-3xl p-6 border border-blue-200">
+          {isAdmin && (
+  <div className="mb-4 text-right">
+    <button
+      onClick={() => setShowModal(true)}
+      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+    >
+      + Add Module
+    </button>
+  </div>
+)}
           <div className="overflow-x-auto">
             <table className="w-full text-sm md:text-base text-left text-gray-700">
               <thead className="bg-blue-600 text-white sticky top-0 z-10">
@@ -91,6 +195,7 @@ const ExploreModules = () => {
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Description / Features</th>
                   <th className="px-4 py-3 text-right">Price</th>
+                  {isAdmin && <th className="px-4 py-3 text-center">Actions</th>}
                 </tr>
               </thead>
 
@@ -104,7 +209,7 @@ const ExploreModules = () => {
                 ) : (
                   modules.map((mod, index) => {
                     const priceINR = mod.PriceINR || 0;
-                    const priceUSD = mod.PriceUSD || (priceINR / 83).toFixed(2);
+                    const priceUSD = (priceINR * conversionRate).toFixed(2);
 
                     return (
                       <tr
@@ -140,10 +245,56 @@ const ExploreModules = () => {
 
                         {/* Price */}
                         <td className="px-4 py-3 text-right font-semibold text-blue-900">
-                          {region?.name?.toLowerCase() === "india"
-                            ? `₹${priceINR}`
-                            : `$${priceUSD}`}
-                        </td>
+  {isAdmin && editingModule === mod.modId ? (
+    <input
+      type="number"
+      value={newPrice}
+      onChange={(e) => setNewPrice(e.target.value)}
+      className="w-20 border rounded text-center"
+    />
+ ) : region?.currency === "INR" ? (
+  `${currencySymbol}${priceINR}`
+) : (
+  `${currencySymbol}${priceUSD}`
+)}
+</td>
+                       {isAdmin && (
+  <td className="px-4 py-3 text-center space-x-2">
+    {editingModule === mod.modId ? (
+      <>
+        <button
+          onClick={() => handleSave(mod.modId)}
+          className="px-2 py-1 bg-green-500 text-white rounded"
+        >
+          Save
+        </button>
+
+        <button
+          onClick={() => setEditingModule(null)}
+          className="px-2 py-1 bg-gray-400 text-white rounded"
+        >
+          Cancel
+        </button>
+      </>
+    ) : (
+      <>
+        <button
+          onClick={() => handleEdit(mod)}
+          className="px-2 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500"
+        >
+          Edit
+        </button>
+
+        <button
+          onClick={() => handleDelete(mod.modId)}
+          className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          Delete
+        </button>
+      </>
+    )}
+  </td>
+)}
                       </tr>
                     );
                   })
@@ -178,7 +329,145 @@ const ExploreModules = () => {
           </button>
         </div>
       </main>
+{showModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+    <div className="bg-white p-6 rounded-xl w-[500px] shadow-lg">
+      <h2 className="text-xl font-bold mb-4 text-blue-900">Add Module</h2>
 
+      <input
+        type="text"
+        placeholder="Module Name"
+        className="w-full border p-2 mb-3 rounded"
+        value={newModule.modName}
+        onChange={(e) => setNewModule({ ...newModule, modName: e.target.value })}
+      />
+
+      <div className="mb-3">
+  <label className="block font-semibold mb-1 text-blue-900">
+    Module Category
+  </label>
+
+  <select
+    className="w-full border p-2 mb-2 rounded"
+    value={categoryMode}
+    onChange={(e) => {
+      setCategoryMode(e.target.value);
+      setNewModule({ ...newModule, modObjective: "" });
+    }}
+  >
+    <option value="existing">Select Existing Category</option>
+    <option value="new">Create New Category</option>
+  </select>
+
+  {categoryMode === "existing" ? (
+    <select
+      className="w-full border p-2 rounded"
+      value={newModule.modObjective}
+      onChange={(e) =>
+        setNewModule({ ...newModule, modObjective: e.target.value })
+      }
+    >
+      <option value="">-- Select Category --</option>
+      {existingCategories.map((category, index) => (
+        <option key={index} value={category}>
+          {category}
+        </option>
+      ))}
+    </select>
+  ) : (
+    <input
+      type="text"
+      placeholder="Enter New Category"
+      className="w-full border p-2 rounded"
+      value={newModule.modObjective}
+      onChange={(e) =>
+        setNewModule({ ...newModule, modObjective: e.target.value })
+      }
+    />
+  )}
+</div>
+
+      <textarea
+        placeholder="Description"
+        className="w-full border p-2 mb-3 rounded"
+        value={newModule.modDesc}
+        onChange={(e) => setNewModule({ ...newModule, modDesc: e.target.value })}
+      />
+
+      <textarea
+        placeholder="Features"
+        className="w-full border p-2 mb-3 rounded"
+        value={newModule.modFeatureList}
+        onChange={(e) => setNewModule({ ...newModule, modFeatureList: e.target.value })}
+      />
+
+      <input
+        type="number"
+        placeholder="Price INR"
+        className="w-full border p-2 mb-3 rounded"
+        value={newModule.PriceINR}
+        onChange={(e) => setNewModule({ ...newModule, PriceINR: e.target.value })}
+      />
+      <div className="mb-3 border p-3 rounded bg-gray-50">
+  <p className="font-semibold mb-2 text-blue-900">
+    Add this module to packages:
+  </p>
+
+  <label className="block mb-2">
+    <input
+      type="checkbox"
+      checked={newModule.pkgPro}
+      onChange={(e) =>
+        setNewModule({ ...newModule, pkgPro: e.target.checked })
+      }
+      className="mr-2"
+    />
+    ZingHR Pro
+  </label>
+
+  <label className="block mb-2">
+    <input
+      type="checkbox"
+      checked={newModule.pkgProPlus}
+      onChange={(e) =>
+        setNewModule({ ...newModule, pkgProPlus: e.target.checked })
+      }
+      className="mr-2"
+    />
+    ZingHR Pro Plus
+  </label>
+
+  <label className="block">
+    <input
+      type="checkbox"
+      checked={newModule.pkgGrowth}
+      onChange={(e) =>
+        setNewModule({ ...newModule, pkgGrowth: e.target.checked })
+      }
+      className="mr-2"
+    />
+    ZingHR GHROWTH
+  </label>
+</div>
+
+      <div className="flex justify-end gap-3 mt-4">
+        <button
+          onClick={() => setShowModal(false)}
+          className="px-4 py-2 bg-gray-400 text-white rounded"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleAddModule}
+          className="px-4 py-2 bg-green-600 text-white rounded"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       <Footer />
     </div>
   );

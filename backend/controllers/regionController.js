@@ -32,14 +32,20 @@ const updateRegions = async (req, res) => {
         await pool.request()
           .input("name", region.name)
           .input("currency", region.currency)
+          .input("currencySymbol", region.currencySymbol || "")
           .input("pricing", region.pricing || `Pricing in ${region.currency}`)
+          .input("conversionBaseINR", region.conversionBaseINR || 10)
+.input("conversionValue", region.conversionValue || 0)
           .input("id", region.id)
           .query(`
             UPDATE regions
-            SET name=@name,
-                currency=@currency,
-                pricing=@pricing
-            WHERE id=@id
+SET name=@name,
+    currency=@currency,
+    currencySymbol=@currencySymbol,
+    pricing=@pricing,
+    conversionBaseINR=@conversionBaseINR,
+    conversionValue=@conversionValue
+WHERE id=@id
           `);
 
       } else {
@@ -48,10 +54,13 @@ const updateRegions = async (req, res) => {
         await pool.request()
           .input("name", region.name)
           .input("currency", region.currency)
+          .input("currencySymbol", region.currencySymbol || "")
           .input("pricing", region.pricing || `Pricing in ${region.currency}`)
+          .input("conversionBaseINR", region.conversionBaseINR || 10)
+.input("conversionValue", region.conversionValue || 0)
           .query(`
-            INSERT INTO regions (name, currency, pricing)
-            VALUES (@name, @currency, @pricing)
+            INSERT INTO regions (name, currency, currencySymbol, pricing, conversionBaseINR, conversionValue)
+VALUES (@name, @currency, @currencySymbol, @pricing, @conversionBaseINR, @conversionValue)
           `);
 
       }
