@@ -889,67 +889,93 @@ return (
     Is slab-wise pricing applicable?
   </label>
 
-  {isSlabPricing && (
-    <div className="space-y-3">
-      {slabs.map((slab, index) => (
-        <div key={index} className="flex gap-3 items-center">
-          <input
-            type="number"
-            placeholder="From"
-            value={slab.from}
-            onChange={(e) => {
-              const updated = [...slabs];
-              updated[index].from = Number(e.target.value);
-              setSlabs(updated);
-            }}
-            className="w-24 border p-2 rounded"
-          />
+{isSlabPricing && (
+  <div className="mt-4">
 
-          <input
-            type="number"
-            placeholder="To"
-            value={slab.to}
-            onChange={(e) => {
-              const updated = [...slabs];
-              updated[index].to = Number(e.target.value);
-              setSlabs(updated);
-            }}
-            className="w-24 border p-2 rounded"
-          />
+    <h3 className="text-md font-bold text-blue-800 mb-2">
+      Slab Pricing Configuration
+    </h3>
 
-          <input
-            type="number"
-            placeholder="Rate (PEPM)"
-            value={slab.rate}
-            onChange={(e) => {
-              const updated = [...slabs];
-              updated[index].rate = Number(e.target.value);
-              setSlabs(updated);
-            }}
-            className="w-32 border p-2 rounded"
-          />
+    <table className="w-full border border-gray-300 text-sm">
+      <thead>
+        <tr className="bg-gray-200 text-center">
+          <th className="border p-2">From</th>
+          <th className="border p-2">To</th>
+          <th className="border p-2">Rate (PEPM)</th>
+          <th className="border p-2 w-[80px]">Action</th>
+        </tr>
+      </thead>
 
-          <button
-            onClick={() =>
-              setSlabs(slabs.filter((_, i) => i !== index))
-            }
-            className="text-red-500"
-          >
-            ❌
-          </button>
-        </div>
-      ))}
+      <tbody>
+        {slabs.map((slab, index) => (
+          <tr key={index} className="text-center">
+            
+            <td className="border p-2">
+              <input
+                type="number"
+                value={slab.from}
+                onChange={(e) => {
+                  const updated = [...slabs];
+                  updated[index].from = Number(e.target.value);
+                  setSlabs(updated);
+                }}
+                className="w-full border rounded px-2 py-1"
+              />
+            </td>
 
-      <button
-        onClick={() =>
-          setSlabs([...slabs, { from: 0, to: 0, rate: 0 }])
-        }
-        className="px-3 py-1 bg-blue-500 text-white rounded"
-      >
-        + Add Slab
-      </button>
-    </div>
-  )}
+            <td className="border p-2">
+              <input
+                type="number"
+                value={slab.to}
+                onChange={(e) => {
+                  const updated = [...slabs];
+                  updated[index].to = Number(e.target.value);
+                  setSlabs(updated);
+                }}
+                className="w-full border rounded px-2 py-1"
+              />
+            </td>
+
+            <td className="border p-2">
+              <input
+                type="number"
+                value={slab.rate}
+                onChange={(e) => {
+                  const updated = [...slabs];
+                  updated[index].rate = Number(e.target.value);
+                  setSlabs(updated);
+                }}
+                className="w-full border rounded px-2 py-1"
+              />
+            </td>
+
+            <td className="border p-2">
+              <button
+                onClick={() =>
+                  setSlabs(slabs.filter((_, i) => i !== index))
+                }
+                className="flex items-center justify-center w-8 h-8 mx-auto rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition"
+              >
+                ✕
+              </button>
+            </td>
+
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    <button
+      onClick={() =>
+        setSlabs([...slabs, { from: 0, to: 0, rate: 0 }])
+      }
+      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+    >
+      + Add Slab
+    </button>
+
+  </div>
+)}
 </div>
         
         {/* Module Assignment UI */}

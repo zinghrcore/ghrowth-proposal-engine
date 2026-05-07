@@ -887,6 +887,40 @@ const finalRate = rate - (rate * billingDiscount) / 100;
         <span>Total Monthly</span>
         <span>{currencySymbol}{totalMonthly.toLocaleString()}</span>
       </div>
+     {/*<div className="flex justify-between text-sm text-gray-300">
+  <span>Training Fees (Add-on Training Fee Post Go-Live – Two rounds of Train the Trainer Concept)</span>
+  <span className="text-right">
+    2 days free, then {currencySymbol}
+    {Number(
+      regionInfo.currency === "INR"
+        ? 15000
+        : 15000 *
+          (Number(regionInfo.conversionValue || 0) /
+            Number(regionInfo.conversionBaseINR || 1))
+    ).toLocaleString("en-IN")} / day
+  </span>
+</div>
+
+<p className="text-xs text-gray-400 mt-1">
+ 
+</p>
+<div className="flex justify-between text-sm text-gray-300">
+  <span>Integration (Charged per effort day for integration requirements during implementation phases)</span>
+  <span className="text-right">
+    Free up to 5 days, then {currencySymbol}
+    {Number(
+      regionInfo.currency === "INR"
+        ? 15000
+        : 15000 *
+          (Number(regionInfo.conversionValue || 0) /
+            Number(regionInfo.conversionBaseINR || 1))
+    ).toLocaleString("en-IN")} / day
+  </span>
+</div>
+
+<p className="text-xs text-gray-400 mt-1">
+  
+</p>*/}
     </div>
 <div className="flex justify-between font-semibold mt-2">
   <span>One-Time Implementation Cost</span>

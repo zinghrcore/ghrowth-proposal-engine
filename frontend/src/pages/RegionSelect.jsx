@@ -92,8 +92,16 @@ console.log("Regions:", regions);
       </h2>
 
       <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="grid grid-cols-[1.5fr_1fr_0.7fr_1fr_1.5fr_0.8fr] gap-2 font-semibold text-sm text-gray-700 bg-gray-100 p-2 rounded text-center">
+  <span>Region Name</span>
+  <span>Currency</span>
+  <span>Symbol</span>
+  <span>INR Base</span>
+  <span>Conversion Value</span>
+  <span>Action</span>
+</div>
         {editRegions.map((region, index) => (
-          <div key={index} className="flex gap-2 items-center">
+          <div key={index} className="grid grid-cols-[1.5fr_1fr_0.7fr_1fr_1.5fr_0.8fr] gap-2 items-center">
             <input
               type="text"
               value={region.name}

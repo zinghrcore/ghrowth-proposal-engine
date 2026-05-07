@@ -2,27 +2,19 @@ const express = require('express');
 const router = express.Router();
 const moduleController = require('../controllers/moduleController');
 
-// ✅ Get module counts summary (must come BEFORE /:id)
+// ✅ Specific routes should come first
 router.get('/summary', moduleController.getModuleCounts);
-
-// ✅ Get feature comparison (before /:id as well)
 router.get('/feature-comparison', moduleController.getFeatureComparison);
-router.put('/:id', moduleController.updateModule);
-// ✅ Get all modules
+router.put('/bulk', moduleController.updateModulesBulk);
+router.put('/update-status', moduleController.updateModulePackageStatus);
+
+// ✅ General routes
 router.get('/', moduleController.getAllModules);
-
-// ✅ Get single module by ID
-router.get('/:id', moduleController.getModuleById);
-
-// ✅ Create a new module
 router.post('/', moduleController.createModule);
 
-// ✅ Bulk update modules
-router.put('/bulk', moduleController.updateModulesBulk);
-
-// ✅ Delete module
+// ✅ Dynamic ID routes should always come last
+router.get('/:id', moduleController.getModuleById);
+router.put('/:id', moduleController.updateModule);
 router.delete('/:id', moduleController.deleteModule);
-router.put("/update-status", moduleController.updateModulePackageStatus);
-
 
 module.exports = router;

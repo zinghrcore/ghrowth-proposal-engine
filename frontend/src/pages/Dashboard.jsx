@@ -332,23 +332,44 @@ const comparisonDataGroupedByCategory = comparisonData
     Logout
   </button>
             <main className="flex-grow pt-20 px-4 md:px-8">
-        {/* ✅ Admin Edit Buttons */}
-        {user.role === 'admin' && (
-          <div className="flex justify-end mb-6 gap-2">
-            <button
-              onClick={() => { setEditPlans(plans); setIsModalOpen(true); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
-            >
-              Edit Plans
-            </button>
-            <button
-              onClick={() => { setEditModules(modules); setIsModuleModalOpen(true); }}
-              className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition"
-            >
-              Edit Modules
-            </button>
-          </div>
-        )}
+
+       {user.role === 'admin' && (
+  <div className="flex justify-center items-center gap-4 mb-10 flex-wrap">
+
+    {/* Edit Plans */}
+    <button
+      onClick={() => { setEditPlans(plans); setIsModalOpen(true); }}
+      className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
+    >
+      Edit Plans
+    </button>
+
+    {/* View All Proposals */}
+    <button
+      onClick={() => navigate('/admin/all-proposals')}
+      className="px-5 py-2.5 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition"
+    >
+      View All Proposals
+    </button>
+
+    {/* View My Proposals */}
+    <button
+      onClick={() => navigate('/my-proposals')}
+      className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
+    >
+      View My Proposals
+    </button>
+
+    {/* Explore Modules */}
+    <button
+      onClick={() => navigate('/explore-modules')}
+      className="px-5 py-2.5 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition"
+    >
+      Explore All Modules
+    </button>
+
+  </div>
+)}
 
         {/* ✅ Approver Button */}
         {user.role === 'approver' && (
@@ -361,36 +382,6 @@ const comparisonDataGroupedByCategory = comparisonData
             </button>
           </div>
         )}
-
-        {/* ✅ Admin Button */}
-        {user.role === 'admin' && (
-          <div className="flex justify-center mb-6">
-            <button
-              onClick={() => navigate('/admin/all-proposals')}
-              className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition"
-            >
-              View All Proposals
-            </button>
-          </div>
-        )}
-
-        {/* Combined Buttons for Users */}
-          <div className="flex justify-center gap-6 mb-10">
-            <button
-              onClick={() => navigate('/my-proposals')}
-              className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
-            >
-              View My Proposals
-            </button>
-            {mode === "existing" && (
-              <button
-                onClick={() => navigate("/explore-modules")}
-                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
-              >
-                Explore All Modules
-              </button>
-            )}
-          </div>
         <div className="mt-16 overflow-x-auto">
           <h1 className="text-4xl font-extrabold text-center text-blue-900 mb-3">
             Compare Plans & Choose
@@ -489,7 +480,7 @@ const comparisonDataGroupedByCategory = comparisonData
                                 packageName: pkg.pkgName,
                                 status: included ? "excluded" : "included",
                               });
-                              showNotification("Module status updated successfully!", "success");
+                              showNotification("Module status updated successfully! Please Refresh!", "success");
                             } catch (err) {
                               console.error("Error updating module status:", err);
                               showNotification("Failed to update status. Please try again.", "error");
